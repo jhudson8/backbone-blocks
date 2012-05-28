@@ -26,7 +26,10 @@ Pages.TemplateEngines.defaultEngine = Pages.TemplateEngines.Underscore;
 
 
 /**
- * Pages.Content is the package structure for template contentent retrieval plugins
+ * Pages.Content is the package structure for template contentent retrieval plugins.  The content provider API
+ * is as follows:
+ * - get(path) return the content relating to the path
+ * - isValid(path) return true if the path represents a valid content block
  */
 Pages.ContentProviders = {
 

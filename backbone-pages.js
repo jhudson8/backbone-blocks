@@ -308,7 +308,7 @@ Pages.Collection = Backbone.Collection.extend({
 	fetch: function(options) {
 		options = onFetchOptions(this, options);
 		this._fetching = true;
-		Backbone.Collection.prototype.fetch.call(options);
+		Backbone.Collection.prototype.fetch.call(this, options);
 	}
 });
 

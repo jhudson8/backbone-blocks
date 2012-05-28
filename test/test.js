@@ -74,15 +74,29 @@ $(document).ready(function() {
 	main.render();
 	
 	setTimeout(function() {
+		console.log('add items');
 		main.items.add(new Backbone.Model({
+			id: '123',
 			firstName: 'Joe',
 			lastName: 'Hudson'
 		}));
+		main.items.add(new Backbone.Model({
+			id: '234',
+			firstName: 'Billy',
+			lastName: 'Bob'
+		}));
 		
 		setTimeout(function() {
+			console.log('remove single item');
 			main.items._populated = true;
 			main.items._fetching = false;
-			main.items.reset();
+			main.items.remove(main.items.at(0));
+			
+			setTimeout(function() {
+				console.log('reset items');
+				main.items.reset();
+			}, 1000);
+			
 		}, 1000);
 		
 	}, 1000);

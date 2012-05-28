@@ -169,6 +169,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 
 		// set the data attribute and append the item element
 		itemEl.attr('data-view', model.id);
+		itemEl.addClass('collection-container');
 		this.el.append(itemEl);
 	},
 
@@ -185,7 +186,13 @@ _.extend(DefaultCollectionHandler.prototype, {
 		if (this.collection.size() == 0) {
 			this.render();
 		} else {
-			this.getElement().find('[data-view=' + model.id + ']').remove();
+			var items = this.el.find('.collection-container');
+			for (var i=0; i<items.size(); i++) {
+				if (items.get(i).getAttribute('data-view') === model.id) {
+					$(items.get(i)).remove();
+					return;
+				}
+			}
 		}
 	},
 

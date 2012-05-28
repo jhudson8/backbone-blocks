@@ -102,6 +102,11 @@ _.extend(DefaultCollectionHandler.prototype, {
 		this.view = view;
 		this.collection = collection;
 		this.subViews = {};
+		if (_.isUndefined(options.fetch) || options.fetch) {
+			if (!collection.isPopulated || (!collection.isPopulated() && !collection.isFetching())) {
+				collection.fetch(options);
+			}
+		}
 	},
 
 	/**

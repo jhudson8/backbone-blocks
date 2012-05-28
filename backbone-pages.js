@@ -242,11 +242,8 @@ Pages.View = Backbone.View.extend({
 		this.trigger('render:start');
 		var content = this.getTemplate(this.getPath(), this.getContext());
 		this.$el.html(content);
-		this.trigger('render:content');
 		this.renderSubViews();
-		this.trigger('render:subviews');
 		this.renderCollections();
-		this.trigger('render:collections');
 		this.trigger('render:end');
 		return this;
 	},

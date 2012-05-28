@@ -24,6 +24,7 @@ Pages.TemplateEngines = {
 // use this value to set the default template engine
 Pages.TemplateEngines.defaultEngine = Pages.TemplateEngines.Underscore;
 
+
 /**
  * Pages.Content is the package structure for template contentent retrieval plugins
  */
@@ -61,6 +62,7 @@ Pages.ContentProviders = {
 };
 // use this value to set the default content provider
 Pages.ContentProviders.defaultProvider = new Pages.ContentProviders.ElementProvider();
+
 
 /**
  * Pages.CollectionHandlers is the package structure for view collection handlers.  The collection handler public API
@@ -253,11 +255,20 @@ _.extend(DefaultCollectionHandler.prototype, {
 });
 
 
+/**
+ * Collection
+ */
 Pages.Collection = Backbone.Collection.extend({
+	/**
+	 * return true if models are currently being fetched
+	 */
 	isFetching: function() {
 		return this._fetching;
 	},
 
+	/**
+	 * return true if data has been fetched and populated
+	 */
 	isPopulated: function() {
 		return (this.size() > 0 || this._populated);
 	},
@@ -270,11 +281,20 @@ Pages.Collection = Backbone.Collection.extend({
 });
 
 
+/**
+ * Model
+ */
 Pages.Model = Backbone.Model.extend({
+	/**
+	 * return true if model is currently being fetched
+	 */
 	isFetching: function() {
 		return this._fetching;
 	},
 
+	/**
+	 * return true if data has been fetched and populated
+	 */
 	isPopulated: function() {
 		return this._populated;
 	},

@@ -150,7 +150,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 */
 	onEmpty: function() {
 		this.wasEmpty = true;
-		this.el.html(this.view.getTemplate(this.getPath() + '-empty'));
+		this.el.html(this.view.execTemplate(this.getTemplatePath() + '-empty'));
 	},
 
 	/**
@@ -166,7 +166,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 * @param model the item model
 	 */
 	onItem: function(model) {
-		return this.view.getTemplate(this.getPath(model), this.context(model));
+		return this.view.execTemplate(this.getTemplatePath(model), this.context(model));
 	},
 
 	/**
@@ -181,7 +181,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 * return the item template path
 	 * @param model the item model
 	 */
-	getPath: function(model) {
+	getTemplatePath: function(model) {
 		var prefix = (this.view.template || this.view.name) + '-' + (this.options.alias || 'collection');
 		if (model) {
 			return prefix + '-item';
@@ -240,7 +240,7 @@ Pages.View = Backbone.View.extend({
 	 */
 	render: function() {
 		this.trigger('render:start');
-		var content = this.getTemplate(this.getPath(), this.getContext());
+		var content = this.execTemplate(this.getTemplatePath(), this.getContext());
 		this.$el.html(content);
 		this.renderSubViews();
 		this.renderCollections();
@@ -251,7 +251,7 @@ Pages.View = Backbone.View.extend({
 	/**
 	 * Return the template path for this view
 	 */
-	getPath: function() {
+	getTemplatePath: function() {
 		return this.template || this.name;
 	},
 
@@ -262,7 +262,7 @@ Pages.View = Backbone.View.extend({
 	 * @param options meaningful for the template plugin or use 'suppressError' to suppress any errors
 	 * @trigger 'template:error' if errors were suppressed and an error occured
 	 */
-	getTemplate: function(path, context, options) {
+	execTemplate: function(path, context, options) {
 		try {
 			var content = this.contentLoader(path);
 			var template = this.templateLoader.load(content);

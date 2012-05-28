@@ -1,0 +1,45 @@
+<html>
+	<head>
+		<script src="../../lib/underscore.js"></script>
+		<script src="../../lib/zepto.js"></script>
+		<script src="../../lib/backbone.js"></script>
+		<script src="../../lib/backbone-pages.js"></script>
+		<script src="../../lib/examples.js"></script>
+		<script src="example.js"></script>
+	</head>
+	<body>
+		<div class="links"></div>
+
+		<h2>Event Bubbling</h2>
+		<p>
+			Sub-views and collections can have their events automatically bubbled up to the parent view.  Parent views can also use
+			the <em>events</em> hash to bind to both sub-views and collection events as well as parent view events.  The <em>alias</em>
+			value is used as a prefix for all events.
+		</p>
+		<pre class="code">
+...
+events: {
+	myView: {
+		rendered: 'onSubViewRendered',
+		thing1: 'onThing1'
+	}
+	// OR
+	'myView:rendered': 'onSubViewRendered',
+	'myView:thing1': 'onThing1'
+},
+
+initialize: function() {
+	this.$uper('initialize', arguments);
+	
+	var myView = this.addView({
+		view: new SimpleView(),
+		alias: 'myView',
+		selector: '#myView'
+	});
+}
+...
+		</pre>
+
+		<div id="example"></div>
+	</body>
+</html>

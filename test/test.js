@@ -1,5 +1,15 @@
 $(document).ready(function() {
-	Pages.ContentProviders.defaultProvider = new Pages.ContentProviders.ElementProvider('${template}-template');
+
+	Pages.templates = {
+		view1: 'This is view 1 content',
+		view2: 'This is view 2 content',
+		main: {
+			template: 'should be view 1<div id="view1"> </div><br><br>should be view 2<div id="view2"></div> <br><br><div class="items"></div>',
+			'items-item': '<%= firstName %> <%= lastName %>',
+			'items-empty': 'Nothing to see here',
+			'items-loading': 'Loading...'
+		}
+	}
 
 	var view1 = Pages.View.extend({
 		template: 'view1-template'

@@ -30,43 +30,59 @@ Pages.TemplateEngines.defaultEngine = Pages.TemplateEngines.Underscore;
 /**
  * Pages.Content is the package structure for template contentent retrieval plugins.  The content provider API
  * is as follows:
- * - get(path) return the content relating to the path
+ * - get(path, view (optional)) return the content relating to the path
  * - isValid(path) return true if the path represents a valid content block
  */
 Pages.ContentProviders = {
 
 	/**
-	 * Simple templates using script tags. ex: <script type="text/handlebars" id="templateName"> ... </script>
-	 * @param templatePattern a pattern which contains ${template} if the script id is different than the path
+	 * Simple templates that can either be defined on the view within the 'templates' property or on Pages.templates.  If in Pages.templates
+	 * then the view 'package' property will be prefixed to the path.  Package segments should be separated with '.'.  Each package segment
+	 * will map to a sub-property within Pages.templates.  So, a 'foo' path with a 'abc.def' package would be set as follows:
+	 * Pages.templates = {
+	 *   abc: {
+	 *     def: {
+	 *       foo: "This is the foo content"
+	 *     }
+	 *   }
+	 * }
 	 */
-	ElementProvider: function(templatePattern) {
-		templatePattern = templatePattern || '${template}';
+	HashProvider: function(root) {
 		return {
-			get: function(path) {
-				path = this.normalizePath(path);
-				var el = $('#' + path);
-				if (el.size() === 1) {
-					return el.html();
-				} else {
+			get: function(path, view, suppressError) {
+				// see if we can get from the view first
+				var rtn = view && view.templates && view.templates[path];
+				
+				// if not, pull from the root using the view package if available
+				if (!rtn) {
+					var parent = root || Pages.templates;
+					path = ((view && view.package) ? (view.package.replace('.', '/') + '/') : '') + path
+					var parts = path.split('/');
+					for (var i in parts) {
+						if (!parent) break;
+						parent = parent[parts[i]];
+					}
+					rtn = parent;
+				}
+				if (rtn && !_.isString(rtn)) {
+					// allow for the actual path to reference a hash with a 'template' property.  This helps if
+					// collection templates use the view template as the path prefix
+					rtn = rtn.template;
+				}
+				if (!rtn && !suppressError) {
 					throw new Error('Undefined template "' + path + '"');
 				}
+				return rtn;
 			},
 			
-			isValid: function(path) {
-				path = this.normalizePath(path);
-				var el = $('#' + path);
-				return (el.size() === 1);
-			},
-
-			normalizePath: function(path) {
-				path = path.replace('/', '-');
-				return templatePattern.replace('${template}', path);
+			isValid: function(path, view) {
+				return !!this.get(path, view, true);
 			}
 		};
 	}
 };
 // use this value to set the default content provider
-Pages.ContentProviders.defaultProvider = new Pages.ContentProviders.ElementProvider();
+Pages.ContentProviders.defaultProvider = new Pages.ContentProviders.HashProvider();
 
 
 /**
@@ -194,8 +210,8 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 */
 	onLoading: function() {
 		var path = this.getTemplatePath() + '-loading';
-		if (this.view.contentProvider.isValid(path)) {
-			this.el.html(this.view.execTemplate(path));
+		if (this.view.contentProvider.isValid(path, this.view)) {
+			this.el.html(this.view.execTemplate(path, this.view));
 		} else {
 			this.onEmpty();
 		}
@@ -230,7 +246,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 * @param model the item model
 	 */
 	getTemplatePath: function(model) {
-		var prefix = (this.view.template || this.view.name) + '-' + (this.options.alias || 'collection');
+		var prefix = (this.view.template || this.view.name) + '/' + (this.options.alias || 'items');
 		if (model) {
 			return prefix + '-item';
 		} else {
@@ -365,7 +381,7 @@ Pages.View = Backbone.View.extend({
 	 */
 	execTemplate: function(path, context, options) {
 		try {
-			var content = this.contentProvider.get(path);
+			var content = this.contentProvider.get(path, this);
 			var template = this.templateLoader.load(content);
 			return template(context);
 		} catch (e) {

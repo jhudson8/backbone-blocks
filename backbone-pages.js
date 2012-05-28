@@ -5,7 +5,14 @@ var Pages = {};
 var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 var singlePartPattern = /^[^s]*$/;
 
+/**
+ * Pages.Template is the package structure for template engine plugins
+ */
 Pages.Template = {
+
+	/**
+	 * Simple template plugin using the underscore template function
+	 */
 	Underscore: {
 		load: function(content) {
 			return function(data) {
@@ -14,18 +21,40 @@ Pages.Template = {
 		}
 	}
 };
+
+/**
+ * Pages.Content is the package structure for template contentent retrieval plugins
+ */
 Pages.Content = {
-	ScriptProvider: function(path) {
-		path = path.replace('/', '-') + '-template';
-		var el = $('#' + path);
-		if (el.size() == 1) {
-			return el.html();
-		} else {
-			throw new Error('Undefined template "' + path + '"');
+
+	/**
+	 * Simple templates using script tags. ex: <script type="text/handlebars" id="templateName"> ... </script>
+	 * @param templatePattern a pattern which contains ${template} if the script id is different than the path
+	 */
+	ScriptProvider: function(templatePattern) {
+		templatePattern = templatePattern || '${template}';
+		return function(path) {
+			path = path.replace('/', '-');
+			path = templatePattern.replace('${template)', path);
+			var el = $('#' + path);
+			if (el.size() == 1) {
+				return el.html();
+			} else {
+				throw new Error('Undefined template "' + path + '"');
+			}
 		}
 	}
 };
 
+/**
+ * Pages.CollectionHandlers is the package structure for view collection handlers.  The collection handler public API
+ * is as follows:
+ * - init (options, view, collection): initialize with options from Pages.View#addCollection call, view instance and collection instance
+ * - render: render the collection
+ * - onAdd: called when a model was added to the collection
+ * - onRemove: called when a model was removed from the collection
+ * - onReset: called when the collection was reset
+ */
 Pages.CollectionHandlers = {};
 var DefaultCollectionHandler = Pages.CollectionHandlers.Default = function() {}
 _.extend(DefaultCollectionHandler.prototype, {
@@ -66,14 +95,17 @@ _.extend(DefaultCollectionHandler.prototype, {
 
 	onAdd: function(model) {
 		if (this.wasEmpty) {
+			// just render like normal if we used to be empty
 			return this.render();
 		}
 
+		// what function should we use to get item data
 		var viewFunctions = ['collectionItem'];
 		if (this.options.alias) viewFunctions.splice(0, 0, this.options.alias + 'Item');
 		var fc = this.getFunctionAndContext(viewFunctions, this.onItem);
 		var data = fc.func.call(fc.context, model, this.options);
-		
+
+		// data can be either HTML string or View instance
 		var itemEl;		
 		if (data instanceof Backbone.View) {
 			data.render();
@@ -83,6 +115,8 @@ _.extend(DefaultCollectionHandler.prototype, {
 			itemEl = $(this.itemContainer(model));
 			itemEl.append(data);
 		}
+
+		// set the data attribute and append the item element
 		itemEl.attr('data-view', model.id);
 		this.el.append(itemEl);
 	},
@@ -106,23 +140,42 @@ _.extend(DefaultCollectionHandler.prototype, {
 	},
 
 	// non-API methods are below
+	/**
+	 * Called when the collection should be rendered in an empty state
+	 */
 	onEmpty: function() {
 		this.wasEmpty = true;
 		this.el.html(this.view.getTemplate(this.getPath() + '-empty'));
 	},
 
+	/**
+	 * return the context for getting the collection item data
+	 * @param model the item model
+	 */
 	context: function(model) {
 		return model.attributes;
 	},
 
+	/**
+	 * return the HTML contents or view impl for this model
+	 * @param model the item model
+	 */
 	onItem: function(model) {
 		return this.view.getTemplate(this.getPath(model), this.context(model));
 	},
 
+	/**
+	 * return the element container for item data (if was HTML string)
+	 * @param model the item model
+	 */
 	itemContainer: function(model) {
 		return this.view.make('div');
 	},
 
+	/**
+	 * return the item template path
+	 * @param model the item model
+	 */
 	getPath: function(model) {
 		var prefix = (this.view.template || this.view.name) + '-' + (this.options.alias || 'collection');
 		if (model) {
@@ -132,6 +185,12 @@ _.extend(DefaultCollectionHandler.prototype, {
 		}
 	},
 
+	/**
+	 * Return a hash contain props for 'func' and 'context' depending if the a function was found as
+	 * a property of the view of the default function.
+	 * @param viewNames array of names of view properties to check for existance (use view as context)
+	 * @param defaultFunc the default function if (use this as context)
+	 */
 	getFunctionAndContext: function(viewNames, defaultFunc) {
 		var viewContext = false;
 		var func;
@@ -147,11 +206,21 @@ _.extend(DefaultCollectionHandler.prototype, {
 	}
 });
 
+/**
+ * Backbone view with enhanced fuctionality.  Template rendering, form serialization, sub views, multiple
+ * collection handling, additional event delegation, etc...
+ */
 Pages.View = Backbone.View.extend({
 
+  /**
+   * You can bind to event 'initialized' to execute post-initialization code
+   * @trigger 'initialized'
+   */
 	initialize: function() {
+		// cache of view events for auto-binding
 		this._delegatedViewEvents = {};
 
+		// cache of sub-views and collections
 		this.subViews = [];
 		this.collections = [];
 
@@ -160,22 +229,40 @@ Pages.View = Backbone.View.extend({
 		this.contentLoader = this.contentLoader || Pages.Content.ScriptProvider;
 	},
 
+	/**
+	 * Get template content using property 'template' or 'name' and render it using this.getContext as data context
+	 * @trigger 'render:start', 'render:content', 'render:subviews', 'render:collections', 'render:end'
+	 */
 	render: function() {
+		this.trigger('render:start');
 		var content = this.getTemplate(this.getPath(), this.getContext());
 		this.$el.html(content);
+		this.trigger('render:content');
 		this.renderSubViews();
+		this.trigger('render:subviews');
 		this.renderCollections();
-		this.trigger('rendered');
+		this.trigger('render:collections');
+		this.trigger('render:end');
 		return this;
 	},
 
+	/**
+	 * Return the template path for this view
+	 */
 	getPath: function() {
 		return this.template || this.name;
 	},
 
+	/**
+	 * return template contents using the template & content plugins
+	 * @param path the template path
+	 * @param context the context data
+	 * @param options meaningful for the template plugin or use 'suppressError' to suppress any errors
+	 * @trigger 'template:error' if errors were suppressed and an error occured
+	 */
 	getTemplate: function(path, context, options) {
 		try {
-			var content = this.getContent(path);
+			var content = this.contentLoader(path);
 			var template = this.templateLoader.load(content);
 			return template(context);
 		} catch (e) {
@@ -187,20 +274,26 @@ Pages.View = Backbone.View.extend({
 		}
 	},
 
-	getContent: function(path) {
-		return this.contentLoader(path);
-	},
-
+	/**
+	 * return the data context for template processing
+	 */
 	getContext: function() {
 		return _.extend({}, this, this.model && this.model.attributes);
 	},
 
+	/**
+	 * render all collections that were added using addCollection.  this will defer to the collection handler render method.
+	 * the collection handler is defined in options with the addCollection method.
+	 */
 	renderCollections: function() {
 		_.each(this.collections, _.bind(function(collectionData) {
 			collectionData.handler.render();
 		}, this));
 	},
 
+	/**
+	 * render all subviews that were added using addSubView
+	 */
 	renderSubViews: function() {
 		_.each(this.subViews, _.bind(function(viewData) {
 			var el = this.$el.find(viewData.selector);
@@ -221,6 +314,15 @@ Pages.View = Backbone.View.extend({
 		return this;
 	},
 
+	/**
+	 * add a sub view.  this can have 2 different parameter types
+	 * 1) view selector; eg .sub-view', view instance
+	 * 2) named options
+	 *    - view: the view instance
+	 *    - selector: the selector where the view will be appended
+	 *    - alias: an alias for the view (for event binding)
+	 * If the sub-view alias is 'foo', the view events could contain, for example, { 'foo:render': 'fooRender' }
+	 */
 	addView: function(selector, view) {
 		var viewData;
 		if (!view) {
@@ -240,6 +342,15 @@ Pages.View = Backbone.View.extend({
 		return view;
 	},
 
+	/**
+	 * add a monitored collection.  this can have 2 different parameter types
+	 * 1) collection
+	 * 2) named options
+	 *    - collection: the collection
+	 *    - handler: the collection handler used to represent the collection in the view; see: Pages.CollectionHandlers
+	 *    - alias: the alias used for binding to collection events
+	 * If the collection alias is 'foo', the view events could contain, for example, { 'foo:reset': 'fooReset' }
+	 */
 	addCollection: function(collection) {
 		var collectionData = (collection.collection) ? collection : {collection: collection};
 		collection = collectionData.collection;
@@ -267,6 +378,9 @@ Pages.View = Backbone.View.extend({
 		return collection;
 	},
 
+	/**
+	 * destroy all sub-views and unbind all custom bindings
+	 */
 	destroy: function() {
 		Backbone.View.prototype.destroy.apply(this, arguments);
 
@@ -283,6 +397,11 @@ Pages.View = Backbone.View.extend({
 		return this;
 	},
 
+	/**
+	 * Call a named method on all sub-views
+	 * @param name the method name
+	 * Any additional parameters will be method parameters
+	 */
 	subViewCall: function(name) {
 		var args = _.toArray(arguments);
 		args.splice(0, 1);
@@ -292,11 +411,25 @@ Pages.View = Backbone.View.extend({
 		return this;
 	},
 
+	/**
+	 * bind to 'all' on object with the provided alias prefix
+	 */
 	eventProxy: function(alias, object) {
 		object.bind('all', new EventProxy(alias, this));
 		return this;
 	},
 
+	/**
+	 * Provide additional event delegations.  Events without a space will be considered as
+	 * binding to events that are triggered from this view.  Hash expanded events are allowed.
+	 * the following are equivalent:
+	 * events {
+	 *   'foo:bar': 'abc',
+	 *   foo: {
+	 *     bar: 'abc'
+	 *   }
+	 * }
+	 */
 	delegateEvents: function(events) {
 		events = defaults.call(this, flatten(events), 'events', true);
 		if (!events) return;
@@ -309,6 +442,11 @@ Pages.View = Backbone.View.extend({
 		}
 	},
 
+	/**
+	 * delegate a specific event
+	 * @param key the event key
+	 * @method the unbound method
+	 */
 	delegateEvent: function(key, method) {
 		if (key.match(singlePartPattern)) {
 			// treat this type of event key as a self event binding
@@ -328,6 +466,10 @@ Pages.View = Backbone.View.extend({
 		}
 	},
 
+	/**
+	 * Undelegate all events
+	 * @param includeAll true to include the custom view events that were bound
+	 */
 	undelegateEvents: function(includeAll) {
 		Backbone.View.prototype.undelegateEvents.call(this);
 		var e = this._delegatedViewEvents;
@@ -341,6 +483,7 @@ Pages.View = Backbone.View.extend({
 	}
 });
 
+// PRIVATE CLASSES AND METHODS //
 function EventProxy(alias, context) {
 	return function(event) {
 		var args = _.toArray(arguments);

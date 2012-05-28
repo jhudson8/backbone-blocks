@@ -6,7 +6,9 @@ var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 var singlePartPattern = /^[^s]*$/;
 
 /**
- * Pages.Template is the package structure for template engine plugins
+ * Pages.Template is the package structure for template engine plugins.  The template engine API
+ * is as follows:
+ * - load: return function which accepts context parameter to return template content
  */
 Pages.TemplateEngines = {
 

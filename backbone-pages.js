@@ -8,7 +8,7 @@ var singlePartPattern = /^[^s]*$/;
 /**
  * Pages.Template is the package structure for template engine plugins
  */
-Pages.Template = {
+Pages.TemplateEngines = {
 
 	/**
 	 * Simple template plugin using the underscore template function
@@ -22,12 +22,12 @@ Pages.Template = {
 	}
 };
 // use this value to set the default template engine
-Pages.Template.defaultEngine = Pages.Template.Underscore;
+Pages.TemplateEngines.defaultEngine = Pages.TemplateEngines.Underscore;
 
 /**
  * Pages.Content is the package structure for template contentent retrieval plugins
  */
-Pages.Content = {
+Pages.ContentProviders = {
 
 	/**
 	 * Simple templates using script tags. ex: <script type="text/handlebars" id="templateName"> ... </script>
@@ -48,7 +48,7 @@ Pages.Content = {
 	}
 };
 // use this value to set the default content provider
-Pages.Content.defaultProvider = new Pages.Content.ElementProvider();
+Pages.ContentProviders.defaultProvider = new Pages.ContentProviders.ElementProvider();
 
 /**
  * Pages.CollectionHandlers is the package structure for view collection handlers.  The collection handler public API
@@ -243,8 +243,8 @@ Pages.View = Backbone.View.extend({
 		this.collections = [];
 
 		// set some defaults
-		this.templateLoader = this.templateLoader || Pages.Template.defaultEngine;
-		this.contentLoader = this.contentLoader || Pages.Content.defaultProvider;
+		this.templateLoader = this.templateLoader || Pages.TemplateEngines.defaultEngine;
+		this.contentLoader = this.contentLoader || Pages.ContentProviders.defaultProvider;
 	},
 
 	/**

@@ -1,0 +1,45 @@
+<html>
+	<head>
+		<script src="../../lib/underscore.js"></script>
+		<script src="../../lib/zepto.js"></script>
+		<script src="../../lib/backbone.js"></script>
+		<script src="../../lib/backbone-pages.js"></script>
+		<script src="../../lib/examples.js"></script>
+		<script src="example.js"></script>
+	</head>
+	<body>
+		<div class="links"></div>
+
+		<h2>Sub Views</h2>
+		<p>
+			Sub-views are views that can be set with other views.  This is useful to create reusable UI structures.
+		</p>
+		<p>
+			Each subview is registered on the view typically during the initialization phase.  These views are registered
+			using the <em>addView</em> function.  The can be registered with additional information like:
+			<ul>
+				<li><em>selector</em>: a jquery selector which would identify the DOM element to attach the view</li>
+				<li><em>alias</em>: an optional alias which can be used for event bubbling
+			</ul>
+		</p>
+		<p>
+			All sub-views will be properly destroyed when the parent destroy method is called.  The will also automatically
+			receive a <em>show</em> and <em>hide</em> method (if they do not already have one).
+		</p>
+		<pre class="code">
+...
+initialize: function() {
+	this.$uper('initialize', arguments);
+	
+	var myView = this.addView({
+		view: new SimpleView(),
+		alias: 'myView',
+		selector: '#myView'
+	});
+}
+...
+		</pre>
+
+		<div id="example"></div>
+	</body>
+</html>

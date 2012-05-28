@@ -35,16 +35,28 @@ Pages.ContentProviders = {
 	 */
 	ElementProvider: function(templatePattern) {
 		templatePattern = templatePattern || '${template}';
-		return function(path) {
-			path = path.replace('/', '-');
-			path = templatePattern.replace('${template}', path);
-			var el = $('#' + path);
-			if (el.size() == 1) {
-				return el.html();
-			} else {
-				throw new Error('Undefined template "' + path + '"');
+		return {
+			get: function(path) {
+				path = this.normalizePath(path);
+				var el = $('#' + path);
+				if (el.size() === 1) {
+					return el.html();
+				} else {
+					throw new Error('Undefined template "' + path + '"');
+				}
+			},
+			
+			isValid: function(path) {
+				path = this.normalizePath(path);
+				var el = $('#' + path);
+				return (el.size() === 1);
+			},
+
+			normalizePath: function(path) {
+				path = path.replace('/', '-');
+				return templatePattern.replace('${template}', path);
 			}
-		}
+		};
 	}
 };
 // use this value to set the default content provider
@@ -98,7 +110,11 @@ _.extend(DefaultCollectionHandler.prototype, {
 			}, this));
 		} else {
 			this.wasEmpty = true;
-			this.onEmpty();
+			if (this.collection.isFetching && this.collection.isFetching()) {
+				this.onLoading();
+			} else {
+				this.onEmpty();
+			}
 		}
 	},
 
@@ -167,6 +183,18 @@ _.extend(DefaultCollectionHandler.prototype, {
 	},
 
 	/**
+	 * Called when the collection should be rendered in an empty state
+	 */
+	onLoading: function() {
+		var path = this.getTemplatePath() + '-loading';
+		if (this.view.contentProvider.isValid(path)) {
+			this.el.html(this.view.execTemplate(path));
+		} else {
+			this.onEmpty();
+		}
+	},
+
+	/**
 	 * return the context for getting the collection item data
 	 * @param model the item model
 	 */
@@ -224,6 +252,41 @@ _.extend(DefaultCollectionHandler.prototype, {
 	}
 });
 
+
+Pages.Collection = Backbone.Collection.extend({
+	isFetching: function() {
+		return this._fetching;
+	},
+
+	isPopulated: function() {
+		return (this.size() > 0 || this._populated);
+	},
+
+	fetch: function(options) {
+		options = onFetchOptions(this, options);
+		this._fetching = true;
+		Backbone.Collection.prototype.fetch.call(options);
+	}
+});
+
+
+Pages.Model = Backbone.Model.extend({
+	isFetching: function() {
+		return this._fetching;
+	},
+
+	isPopulated: function() {
+		return this._populated;
+	},
+
+	fetch: function(options) {
+		options = onFetchOptions(this, options);
+		this._fetching = true;
+		Backbone.Collection.prototype.fetch.call(options);
+	}
+});
+
+
 /**
  * Backbone view with enhanced fuctionality.  Template rendering, form serialization, sub views, multiple
  * collection handling, additional event delegation, etc...
@@ -244,7 +307,7 @@ Pages.View = Backbone.View.extend({
 
 		// set some defaults
 		this.templateLoader = this.templateLoader || Pages.TemplateEngines.defaultEngine;
-		this.contentLoader = this.contentLoader || Pages.ContentProviders.defaultProvider;
+		this.contentProvider = this.contentProvider || Pages.ContentProviders.defaultProvider;
 	},
 
 	/**
@@ -277,7 +340,7 @@ Pages.View = Backbone.View.extend({
 	 */
 	execTemplate: function(path, context, options) {
 		try {
-			var content = this.contentLoader(path);
+			var content = this.contentProvider.get(path);
 			var template = this.templateLoader.load(content);
 			return template(context);
 		} catch (e) {
@@ -546,6 +609,22 @@ function defaults(object, prop, doFlatten) {
 		object = defaults.call($super, object, flatten);
 	}
 	return object;
+}
+
+function onFetchOptions(model, options) {
+	options = options || {};
+	var _success = options.success;
+	function success() {
+		model._fetching = false;
+		model._populated = true;
+		options.success && options.success.apply(model, arguments);
+	}
+	var _error = options.error;
+	function error() {
+		model._fetching = false;
+		options.error && options.error.apply(model, arguments);
+	}
+	return options;
 }
 
 })();

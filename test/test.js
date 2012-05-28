@@ -45,7 +45,8 @@ $(document).ready(function() {
 		},
 
 		initialize: function() {
-			var collection = new Backbone.Collection();
+			var collection = new Pages.Collection();
+			collection._fetching = true;
 			Pages.View.prototype.initialize.apply(this, arguments);
 			this.items = this.addCollection({
 				selector: '.items',
@@ -67,5 +68,12 @@ $(document).ready(function() {
 			firstName: 'Joe',
 			lastName: 'Hudson'
 		}));
+		
+		setTimeout(function() {
+			main.items._populated = true;
+			main.items._fetching = false;
+			main.items.reset();
+		}, 1000);
+		
 	}, 1000);
 });

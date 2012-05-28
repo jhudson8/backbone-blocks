@@ -70,6 +70,10 @@ _.extend(DefaultCollectionHandler.prototype, {
 		this.subViews = {};
 	},
 
+	/**
+	 * Render the collection within the 'selector' element.  If the collection has 0 items, renderEmpty will be called, otherwise, for each item,
+	 * onAdd will be called.
+	 */
 	render: function() {
 		var el = this.el = this.view.$el.find(this.options.selector);
 		if (el.size() != 1) {
@@ -98,6 +102,9 @@ _.extend(DefaultCollectionHandler.prototype, {
 		}
 	},
 
+	/**
+	 * render the content for this model
+	 */
 	onAdd: function(model) {
 		if (this.wasEmpty) {
 			// just render like normal if we used to be empty
@@ -126,6 +133,9 @@ _.extend(DefaultCollectionHandler.prototype, {
 		this.el.append(itemEl);
 	},
 
+	/**
+	 * remove the content relating to this model
+	 */
 	onRemove: function(model) {
 		var view = this.subViews[model.id];
 		if (view) {
@@ -140,6 +150,9 @@ _.extend(DefaultCollectionHandler.prototype, {
 		}
 	},
 
+	/**
+	 * render the collection again as the collection will represent a reset state
+	 */
 	onReset: function() {
 		this.render.call(this);
 	},

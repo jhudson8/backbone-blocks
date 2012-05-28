@@ -376,7 +376,7 @@ Pages.View = Backbone.View.extend({
 	 * return the data context for template processing
 	 */
 	getContext: function() {
-		return _.extend({}, this, this.model && this.model.attributes);
+		return _.extend({}, this.model && this.model.attributes, this.options);
 	},
 
 	/**

@@ -164,7 +164,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 		var itemEl;		
 		if (data instanceof Backbone.View) {
 			data.render();
-			itemEl = data.el;
+			itemEl = data.$el;
 			this.subViews[model.id] = data;
 		} else {
 			itemEl = $(this.itemContainer(model));

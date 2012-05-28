@@ -513,8 +513,6 @@ Pages.View = Backbone.View.extend({
 	 * destroy all sub-views and unbind all custom bindings
 	 */
 	destroy: function() {
-		Backbone.View.prototype.destroy.apply(this, arguments);
-
 		// sub views
 	  this.subViewCall('destroy');
 		delete this.subViews;

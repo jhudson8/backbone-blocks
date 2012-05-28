@@ -1,7 +1,7 @@
 $(document).ready(function() {
 
 	Pages.templates = {
-		view1: 'This is view 1 content',
+		view1: 'This is view 1 content <button>Click me</button>',
 		view2: 'This is view 2 content',
 		main: {
 			template: 'should be view 1<div id="view1"> </div><br><br>should be view 2<div id="view2"></div> <br><br><div class="items"></div>',
@@ -12,21 +12,26 @@ $(document).ready(function() {
 	}
 
 	var view1 = Pages.View.extend({
-		template: 'view1-template'
+		template: 'view1',
+		events: {
+			'click button': 'onClick'
+		},
+		onClick: function() {
+			this.trigger('clicked');
+		}
 	});
 
 	var view2 = Pages.View.extend({
-		template: 'view1-template'
+		template: 'view2'
 	});
 
 	var _main = Pages.View.extend({
 		el: '#main',
 		template: 'main',
 		
+		// FIXME these events *should be* delegated
 		events: {
-			'view1': {
-				'rendered': 'dummy'
-			}
+			'view2:rendered': 'dummy'
 		},
 
 		dummy: function() {
@@ -51,13 +56,20 @@ $(document).ready(function() {
 
 	var main = _main.extend({
 		events: {
-		'view2:rendered': 'dummy2'
+			view1: {
+				'rendered': 'dummy2',
+				'clicked': 'view1Clicked'
+			}
+		},
+
+		view1Clicked: function() {
+			alert('clicked');
 		},
 
 		initialize: function() {
+			_main.prototype.initialize.apply(this, arguments);
 			var collection = new Pages.Collection();
 			collection._fetching = true;
-			Pages.View.prototype.initialize.apply(this, arguments);
 			this.items = this.addCollection({
 				selector: '.items',
 				alias: 'items',

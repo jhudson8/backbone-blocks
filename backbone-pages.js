@@ -3,7 +3,6 @@ var Pages = {};
 (function() {
 // Cached regex to split keys for `delegate`.
 var delegateEventSplitter = /^(\S+)\s*(.*)$/;
-var singlePartPattern = /^[^s]*$/;
 
 /**
  * Pages.Template is the package structure for template engine plugins.  The template engine API
@@ -575,7 +574,7 @@ Pages.View = Backbone.View.extend({
 	 * @method the unbound method
 	 */
 	delegateEvent: function(key, method) {
-		if (key.match(singlePartPattern)) {
+		if (key.indexOf(' ') == -1) {
 			// treat this type of event key as a self event binding
 			var bound = _.bind(method, this);
 			this.on(key, bound);

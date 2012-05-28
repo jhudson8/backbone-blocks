@@ -1,7 +1,6 @@
 $(document).ready(function() {
 
 	Pages.templates = {
-		main: 'This is the main view <br><br/> <h3>People</h3><div id="people"></div> <br><br/> <h3>Places</h3><div id="places"></div>',
 		main: {
 			template: 'This is the main view <br><br/> <h3>People</h3><div id="people"></div> <br><br/> <h3>Places</h3><div id="places"></div>',
 

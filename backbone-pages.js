@@ -21,6 +21,8 @@ Pages.Template = {
 		}
 	}
 };
+// use this value to set the default template engine
+Pages.Template.defaultEngine = Pages.Template.Underscore;
 
 /**
  * Pages.Content is the package structure for template contentent retrieval plugins
@@ -31,11 +33,11 @@ Pages.Content = {
 	 * Simple templates using script tags. ex: <script type="text/handlebars" id="templateName"> ... </script>
 	 * @param templatePattern a pattern which contains ${template} if the script id is different than the path
 	 */
-	ScriptProvider: function(templatePattern) {
+	ElementProvider: function(templatePattern) {
 		templatePattern = templatePattern || '${template}';
 		return function(path) {
 			path = path.replace('/', '-');
-			path = templatePattern.replace('${template)', path);
+			path = templatePattern.replace('${template}', path);
 			var el = $('#' + path);
 			if (el.size() == 1) {
 				return el.html();
@@ -45,6 +47,8 @@ Pages.Content = {
 		}
 	}
 };
+// use this value to set the default content provider
+Pages.Content.defaultProvider = new Pages.Content.ElementProvider();
 
 /**
  * Pages.CollectionHandlers is the package structure for view collection handlers.  The collection handler public API
@@ -69,6 +73,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 	render: function() {
 		var el = this.el = this.view.$el.find(this.options.selector);
 		if (el.size() != 1) {
+			console.log(el.html());
 			throw new Error('Non-unique or empty collection selector "' + this.options.selector + '"');
 		}
 
@@ -225,8 +230,8 @@ Pages.View = Backbone.View.extend({
 		this.collections = [];
 
 		// set some defaults
-		this.templateLoader = this.templateLoader || Pages.Template.Underscore;
-		this.contentLoader = this.contentLoader || Pages.Content.ScriptProvider;
+		this.templateLoader = this.templateLoader || Pages.Template.defaultEngine;
+		this.contentLoader = this.contentLoader || Pages.Content.defaultProvider;
 	},
 
 	/**
@@ -298,6 +303,7 @@ Pages.View = Backbone.View.extend({
 		_.each(this.subViews, _.bind(function(viewData) {
 			var el = this.$el.find(viewData.selector);
 			if (el.size() != 1) {
+				console.log(this.$el.html());
 				throw new Error('non-unique or non-existing sub-view container element "' + viewData.selector + '"');
 			}
 			if (el.children().size() == 0) {
@@ -306,7 +312,7 @@ Pages.View = Backbone.View.extend({
 				// assume we are re-rendering
 				el.children.ad(0).remove();
 			} else {
-				throw new Error('view container element is must be empty');
+				throw new Error('view container element must be empty');
 			}
 			viewData.view.render();
 			el.append(viewData.view.el);

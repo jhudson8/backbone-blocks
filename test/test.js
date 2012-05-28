@@ -1,4 +1,5 @@
 $(document).ready(function() {
+	Pages.Content.defaultProvider = new Pages.Content.ElementProvider('${template}-template');
 
 	var view1 = Pages.View.extend({
 		template: 'view1-template'

@@ -681,6 +681,8 @@ function onFetchOptions(model, options) {
 		model._fetching = false;
 		options.error && options.error.apply(model, arguments);
 	}
+	options.success = success;
+	options.error = error;
 	return options;
 }
 

@@ -368,7 +368,7 @@ Pages.View = Backbone.View.extend({
    * You can bind to event 'initialized' to execute post-initialization code
    * @trigger 'initialized'
    */
-	initialize: function() {
+	initialize: function(options) {
 		// cache of view events for auto-binding
 		this._delegatedViewEvents = {};
 
@@ -646,6 +646,9 @@ function EventProxy(alias, context) {
 	return function(event) {
 		var args = _.toArray(arguments);
 		args[0] = alias + ':' + event;
+		context.trigger.apply(context, args);
+		args[0] = alias + ':all';
+		args.splice(1, 0, event);
 		context.trigger.apply(context, args);
 	}
 }

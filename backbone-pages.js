@@ -68,7 +68,7 @@ Pages.ContentProviders = {
 					// collection templates use the view template as the path prefix
 					rtn = rtn.template;
 				}
-				if (!rtn && !suppressError) {
+				if (!_.isString(rtn) && !suppressError) {
 					throw new Error('Undefined template "' + path + '"');
 				}
 				return rtn;

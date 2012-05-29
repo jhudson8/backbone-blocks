@@ -107,6 +107,19 @@ _.extend(DefaultCollectionHandler.prototype, {
 				collection.fetch(options);
 			}
 		}
+
+		// auto binding
+		var onAdd = _.bind(this.onAdd, this);
+		var onRemove = _.bind(this.onRemove, this);
+		var onReset = _.bind(this.onReset, this);
+		collection.on('add', onAdd);
+		collection.on('remove', onRemove);
+		collection.on('reset', onReset);
+		this._events = {
+			add: onAdd,
+			remove: onRemove,
+			reset: onReset
+		};
 	},
 
 	/**
@@ -205,6 +218,12 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 */
 	onReset: function() {
 		this.render.call(this);
+	},
+
+	destroy: function() {
+		this.collection.off('add', this._events.add);
+		this.collection.off('remove', this._events.remove);
+		this.collection.off('reset', this._events.reset);
 	},
 
 	// non-API methods are below
@@ -468,7 +487,7 @@ Pages.View = Backbone.View.extend({
 
 		// if alias was provided, proxy all sub-view events
 		if (viewData.alias) {
-			this.eventProxy(viewData.alias, viewData.view);
+			viewData._binder = this.eventProxy(viewData.alias, viewData.view);
 		}
 		return view;
 	},
@@ -488,55 +507,45 @@ Pages.View = Backbone.View.extend({
 		collectionData.handler = collectionData.handler || new DefaultCollectionHandler();
 		this.collections.push(collectionData);
 
-		// auto-bind modifications to view
+		// initialize & allow handler to auto-bind modifications to view
 		collectionData.handler.init(collectionData, this, collection);
-		var onAdd = _.bind(collectionData.handler.onAdd, collectionData.handler);
-		var onRemove = _.bind(collectionData.handler.onRemove, collectionData.handler);
-		var onReset = _.bind(collectionData.handler.onReset, collectionData.handler);
-		collection.on('add', onAdd);
-		collection.on('remove', onRemove);
-		collection.on('reset', onReset);
-		collectionData._events = {
-			add: onAdd,
-			remove: onRemove,
-			reset: onReset
-		};
 
 		// if alias was provided, proxy all collection events
 		if (collectionData.alias) {
-			this.eventProxy(collectionData.alias, collectionData.collection);
+			collectionData._binder = this.eventProxy(collectionData.alias, collectionData.collection);
 		}
 		return collection;
+	},
+
+	setModel: function(model) {
+		this._modelBinder && this._modelBinder.off();
+		this.model = model;
+		this._modelBinder = this.eventProxy('model', model);
 	},
 
 	/**
 	 * destroy all sub-views and unbind all custom bindings
 	 */
 	destroy: function() {
+		// model bindings
+		this._modelBinder && this._modelBinder.off();
+
+
+		function unbind(list) {
+			_.each(list, function(data) {
+				data._binder.off();
+			});
+		}
 		// sub views
-	  this.subViewCall('destroy');
+		unbind(this.subViews);
+	  subViewCall.call(this, 'destroy');
 		delete this.subViews;
 
 		// collections
+		unbind(this.collections);
 		_.each(this.collections, _.bind(function(collectionData) {
-			collectionData.off('add', collectionData._events.add);
-			collectionData.off('remove', collectionData._events.remove);
-			collectionData.off('reset', collectionData._events.reset);
+			collectionData.handler.destroy();
 		}, this));
-		return this;
-	},
-
-	/**
-	 * Call a named method on all sub-views
-	 * @param name the method name
-	 * Any additional parameters will be method parameters
-	 */
-	subViewCall: function(name) {
-		var args = _.toArray(arguments);
-		args.splice(0, 1);
-		_.each(this.subViews, function(viewData) {
-			viewData.view[name].apply(args);
-		});
 		return this;
 	},
 
@@ -544,8 +553,15 @@ Pages.View = Backbone.View.extend({
 	 * bind to 'all' on object with the provided alias prefix
 	 */
 	eventProxy: function(alias, object) {
-		object.bind('all', new EventProxy(alias, this));
-		return this;
+		var eventProxy = new EventProxy(alias, this);
+		object.on('all', eventProxy);
+		return {
+			alias: alias,
+			object: object,
+			off: function() {
+				object.off('all', eventProxy);
+			}
+		}
 	},
 
 	/**
@@ -614,10 +630,12 @@ Pages.View = Backbone.View.extend({
 
 // apply the $uper function
 _.each([Pages.View, Pages.Model, Pages.Collection], function(obj) {
-	obj.prototype.$uper = function(name, arguments) {
+	// THIS CAN ONLY BE CALLED WITHIN FUNCTIONS THAT ARE DEFINED ON A CLASS WHICH IS NOT MEANT TO BE EXTENDED
+	obj.prototype.$uper = function $uper (name, arguments) {
 		this.constructor.__super__[name].apply(this, arguments);
 	}
 });
+
 
 // PRIVATE CLASSES AND METHODS //
 function EventProxy(alias, context) {
@@ -626,6 +644,19 @@ function EventProxy(alias, context) {
 		args[0] = alias + ':' + event;
 		context.trigger.apply(context, args);
 	}
+}
+
+/**
+ * Call a named method on all sub-views
+ * @param name the method name
+ * Any additional parameters will be method parameters
+ */
+function subViewCall(name) {
+	var args = _.toArray(arguments);
+	args.splice(0, 1);
+	_.each(this.subViews, function(viewData) {
+		viewData.view[name].apply(args);
+	});
 }
 
 function getValue(object, prop) {
@@ -660,11 +691,11 @@ function defaults(object, prop, doFlatten) {
 			}
 		}
 	}
-	// FIXME why doesn't this work?
-	var $super = this.prototype;
-	if ($super) {
-		object = defaults.call($super, object, flatten);
-	}
+	// FIXME would be nice if I could somehow get super class events and merge them in
+	// but I'm not sure if this is possible
+	// if ($super && $super !== this) {
+	// 	object = defaults.call($super, object, doFlatten);
+	// }
 	return object;
 }
 

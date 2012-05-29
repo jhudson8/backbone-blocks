@@ -379,6 +379,10 @@ Pages.View = Backbone.View.extend({
 		// set some defaults
 		this.templateLoader = this.templateLoader || Pages.TemplateEngines.defaultEngine;
 		this.contentProvider = this.contentProvider || Pages.ContentProviders.defaultProvider;
+
+		if (options.model) {
+			this.setModel(options.model);
+		}
 	},
 
 	/**

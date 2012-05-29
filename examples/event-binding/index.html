@@ -1,0 +1,72 @@
+<html>
+	<head>
+		<script src="../../lib/underscore.js"></script>
+		<script src="../../lib/zepto.js"></script>
+		<script src="../../lib/backbone.js"></script>
+		<script src="../../lib/backbone-pages.js"></script>
+		<script src="../../lib/examples.js"></script>
+		<script src="example.js"></script>
+	</head>
+	<body>
+		<div class="links"></div>
+
+		<h2>Event Binding</h2>
+		<p>
+			Sub-views and collections can have their events automatically bubbled up to the parent view referenced by their alias.  Parent views can also use
+			the <em>events</em> hash to bind to events fired by the parent itself.
+		</p>
+		<p>
+			<h3>View Events</h3>
+			View events can be referenced in the view events hash (convenient if a parent class is triggering the event) by providing the view event name
+			as the events hash key.
+		</p>
+		<p>
+			<h3>View Model</h3>
+			If the model is set on the view using the <em>model</em> constructor property or by using the <em>setModel</em> method of the view, the model
+			events can be bound using the <em>model</em> prefix within view events.
+		</p>
+		<p>
+			<h3>View Collections</h3>
+			Any collection set on the view using <em>addCollection</em> with an <em>alias</em> value will have the collection events available in the view events
+			hash using the alias prefix.
+		</p>
+		<p>
+			<h3>Sub Views</h3>
+			Any sub-view set on the view using <em>addView</em> with an <em>alias</em> value will have the view events available in the view events
+			hash using the alias prefix.
+		</p>
+		<p>
+			<h3>Event Hierarchy</h3>
+			The ':' character in the event key can also be referenced as a parent object within the events hash. So, the following event bindings are equal:
+<pre>
+events: {
+	foo: {
+		event1: 'onEvent1',
+		event2: 'onEvent2'
+	}
+}
+</pre>
+and
+<pre>
+events: {
+	'foo:event1': 'onEvent1',
+	'foo:event2: 'onEvent2'
+}
+</pre>
+		</p>
+		
+		Below is an example of view, sub-view, model, collection and DOM event bindings
+		<pre class="code">
+...
+events: {
+	'viewEvent': 'onViewEvent', // bind to the 'viewEvent' event triggered from the same view that the events hash is registered
+	'myView:someEvent',	// bind to the 'someEvent' event triggered from a sub-view added using the 'myView' alias
+	'myCollection:reset', // bind to the 'reset' event triggered from a collection added using the 'myCollection' alias
+	'model:all', // bind to all events triggered from the model set on the view
+	'click button' // bind to the click event on any 'button' element found within this view's root element
+}
+		</pre>
+
+		<div id="example"></div>
+	</body>
+</html>

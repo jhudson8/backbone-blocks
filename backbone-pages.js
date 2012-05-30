@@ -1,8 +1,150 @@
-var Pages = {};
+var Pages = {
+	Defaults: {
+		modelAlias: 'model',
+		collectionAlias: 'collection',
+		viewAlias: 'view',
+		collectionContainerClass: 'bp_col-container',
+		subviewContainerClass: 'bp_sv-container',
+		modelContainerClass: 'bp_mdl-container',
+		eventWatch: false,
+		selectorGenerator: function(options) { return '.' + options.alias; }
+	}
+};
 
 (function() {
 // Cached regex to split keys for `delegate`.
 var delegateEventSplitter = /^(\S+)\s*(.*)$/;
+
+
+/****************************************
+ * MANAGED OBJECTS
+ ****************************************/
+Pages.ObjectManager = function(parent) {
+	this.parent = parent;
+	this.managedObjects = {};
+};
+_.extend(Pages.ObjectManager.prototype, {
+	get: function(type, alias) {
+		var l = this.managedObjects[type];
+		if (!type) return;
+		for (var i=0; i<l.length; i++) {
+			if (l[i].alias === alias) return l;
+		}
+	},
+
+	getAll: function(type) {
+		return this.managedObjects[type] || [];
+	},
+
+	add: function(type, options) {
+		var l = this.managedObjects[type];
+		if (!l) {
+			l = this.managedObjects[type] = [];
+		}
+		for (var i=0; i<l.length; i++) {
+			if (l[i].alias === options.alias) {
+				throw new Error('Existing managed ' + type + ' "' + options.alias + '"');
+			}
+		}
+		
+		var object = options[type];
+		// initialize and allow auto-binding from the context object to the view
+		options.handler.init && options.handler.init(this.parent, object, options);
+		// if alias was provided, proxy all sub-view events
+		if (options.alias && options.watch) {
+			options._binder = this.eventProxy(options.alias, object);
+		}
+		
+		// auto-bind all 'event' references from the handler
+		var events = flatten(options.handler.events);
+		if (events) {
+			var bindings = [];
+			for (name in events) {
+				var method = events[name];
+				if (method) {
+					if (_.isString(method)) {
+						method = options.handler[method];
+						if (!_.isFunction(method)) {
+							throw new Error('Invalid managed object event "' + method + '"; is not a valid function name');
+						}
+					}
+					var bound = _.bind(method, options.handler);
+					var target = object;
+					var pattern = /^parent:/;
+					if (name.match(pattern)) {
+						// the 'parent' token has been referenced, bind to the parent instead
+						name = name.replace(pattern, '');
+						target = this.parent;
+					}
+					target.bind(name, bound);
+					bindings.push({target: target, event: name, func: bound});
+				}
+			}
+			options._bindings = bindings;
+		}
+		
+		l.push(options);
+		return options[type];
+	},
+
+	/**
+	 * bind to 'all' on object with the provided alias prefix
+	 */
+	eventProxy: function(alias, object) {
+		var eventProxy = new EventProxy(alias, this.parent);
+		object.on('all', eventProxy);
+		return {
+			alias: alias,
+			object: object,
+			off: function() {
+				object.off('all', eventProxy);
+			}
+		}
+	},
+
+	exec: function(type, method, args) {
+		// allow usage without type param to indicate all types
+		if (!method || !_.isString(method)) {
+			args = method;
+			method = type;
+			type = undefined;
+		}
+
+		function exec(l) {
+			_.each(l, function(obj) {
+				var func = obj.handler[method];
+				func && func.apply(obj.handler, args);
+			});
+		}
+
+		if (!type) {
+			for (var type in this.managedObjects) {
+				exec(this.managedObjects[type]);
+			}
+		} else {
+			exec(this.getAll(type));
+		}
+	},
+
+	destroy: function() {
+		for (var type in this.managedObjects) {
+			_.each(this.managedObjects[type], function(obj) {
+				if (obj._bindings) {
+					_.each(obj._bindings, function(binding) {
+						binding.target.off(binding.event, binding.func);
+					});
+				}
+				obj.handler.destroy();
+			});
+		}
+	}
+});
+Pages.Defaults.objectManagerClass = Pages.ObjectManager;
+
+
+/**************************************************
+ * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
+ **************************************************/
 
 /**
  * Pages.Template is the package structure for template engine plugins.  The template engine API
@@ -22,8 +164,7 @@ Pages.TemplateEngines = {
 		}
 	}
 };
-// use this value to set the default template engine
-Pages.TemplateEngines.defaultEngine = Pages.TemplateEngines.Underscore;
+Pages.Defaults.templateEngine = Pages.TemplateEngines.Underscore;
 
 
 /**
@@ -80,24 +221,59 @@ Pages.ContentProviders = {
 		};
 	}
 };
-// use this value to set the default content provider
-Pages.ContentProviders.defaultProvider = new Pages.ContentProviders.HashProvider();
+Pages.Defaults.contentProvider = new Pages.ContentProviders.HashProvider();
 
+
+
+Pages.ModelHandlers = {};
+Pages.ModelHandlers.Simple = Pages.Defaults.modelHandlerClass = function() {};
+_.extend(Pages.ModelHandlers.Simple.prototype, {
+
+	init: function(view, model, options) {
+		this.model = model;
+		this.alias = options.alias;
+		if (_.isUndefined(options.fetch) || options.fetch) {
+			if (!model.isPopulated || (!model.isPopulated() && !model.isFetching())) {
+				model.fetch(options);
+			}
+		}
+	},
+
+	context: function(context) {
+		if (this.alias === Pages.Defaults.modelAlias) {
+			// single model, go staight to attributes
+			_.defaults(context, this.model.attributes);
+		} else {
+			context[this.alias] = this.model.attributes;
+		}
+	}
+});
+
+/****************************************
+ * DEFAULT COLLECTION HANDLER
+ ****************************************/
 
 /**
  * Pages.CollectionHandlers is the package structure for view collection handlers.  The collection handler public API
  * is as follows:
- * - init (options, view, collection): initialize with options from Pages.View#addCollection call, view instance and collection instance
+ * - init (options, view, collection): initialize with options from Pages.View#setCollection call, view instance and collection instance
  * - render: render the collection
  * - onAdd: called when a model was added to the collection
  * - onRemove: called when a model was removed from the collection
  * - onReset: called when the collection was reset
  */
 Pages.CollectionHandlers = {};
-var DefaultCollectionHandler = Pages.CollectionHandlers.Default = function() {}
-_.extend(DefaultCollectionHandler.prototype, {
+Pages.CollectionHandlers.TemplateBound = Pages.Defaults.collectionHandlerClass = function() {};
+_.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
 
-	init: function(options, view, collection) {
+	events: {
+		'add': 'onAdd',
+		'remove': 'onRemove',
+		'reset': 'onReset',
+		'parent:rendered': 'render'
+	},
+
+	init: function(view, collection, options) {
 		this.options = options;
 		this.view = view;
 		this.collection = collection;
@@ -107,19 +283,6 @@ _.extend(DefaultCollectionHandler.prototype, {
 				collection.fetch(options);
 			}
 		}
-
-		// auto binding
-		var onAdd = _.bind(this.onAdd, this);
-		var onRemove = _.bind(this.onRemove, this);
-		var onReset = _.bind(this.onReset, this);
-		collection.on('add', onAdd);
-		collection.on('remove', onRemove);
-		collection.on('reset', onReset);
-		this._events = {
-			add: onAdd,
-			remove: onRemove,
-			reset: onReset
-		};
 	},
 
 	/**
@@ -127,7 +290,12 @@ _.extend(DefaultCollectionHandler.prototype, {
 	 * onAdd will be called.
 	 */
 	render: function() {
-		var el = this.el = this.view.$el.find(this.options.selector);
+		var el;
+		try {
+			el = this.el = this.view.$el.find(this.options.selector);
+		} catch (e) {
+			throw new Error('invaild selector "' + this.options.selector + '"; ' + e);
+		}
 		if (el.size() != 1) {
 			console.log(el.html());
 			throw new Error('Non-unique or empty collection selector "' + this.options.selector + '"');
@@ -168,7 +336,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 		}
 
 		// what function should we use to get item data
-		var viewFunctions = ['collectionItem'];
+		var viewFunctions = [Pages.Defaults.collectionAlias + 'Item'];
 		if (this.options.alias) viewFunctions.splice(0, 0, this.options.alias + 'Item');
 		var fc = this.getFunctionAndContext(viewFunctions, this.onItem);
 		var data = fc.func.call(fc.context, model, this.options);
@@ -186,7 +354,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 
 		// set the data attribute and append the item element
 		itemEl.attr('data-view', model.id);
-		itemEl.addClass('collection-container');
+		itemEl.addClass(Pages.Defaults.collectionContainerClass);
 		this.el.append(itemEl);
 	},
 
@@ -203,7 +371,7 @@ _.extend(DefaultCollectionHandler.prototype, {
 		if (this.collection.size() == 0) {
 			this.render();
 		} else {
-			var items = this.el.find('.collection-container');
+			var items = this.el.find('.' + Pages.Defaults.collectionContainerClass);
 			for (var i=0; i<items.size(); i++) {
 				if (items.get(i).getAttribute('data-view') === model.id) {
 					$(items.get(i)).remove();
@@ -221,9 +389,9 @@ _.extend(DefaultCollectionHandler.prototype, {
 	},
 
 	destroy: function() {
-		this.collection.off('add', this._events.add);
-		this.collection.off('remove', this._events.remove);
-		this.collection.off('reset', this._events.reset);
+		for (var id in this.subViews) {
+			this.subViews[id].destroy();
+		}
 	},
 
 	// non-API methods are below
@@ -306,9 +474,60 @@ _.extend(DefaultCollectionHandler.prototype, {
 });
 
 
+/****************************************
+ * DEFAULT SUBVIEW HANDLER
+ ****************************************/
+
 /**
- * Collection
+ * Pages.SubViewHandlers is the package structure for sub-view handlers.  There isn't much need for anything other than
+ * the default but it allows us to use a managed object to deal with subviews in a standard way.
  */
+Pages.SubViewHandlers = {};
+var defaultSubViewHandler = Pages.Defaults.viewHandlerClass = function() {}
+_.extend(defaultSubViewHandler.prototype, {
+	events: {
+		'parent:rendered': 'render'
+	},
+
+	init: function(parentView, subView, options) {
+		this.options = options;
+		this.view = parentView;
+		this.subView = subView;
+	},
+
+	render: function() {
+		var el;
+		try {
+			el = this.el = this.view.$el.find(this.options.selector);
+		} catch (e) {
+			throw new Error('invaild selector "' + this.options.selector + '"; ' + e);
+		}
+		if (el.size() != 1) {
+			console.log(this.view.$el.html());
+			throw new Error('non-unique or non-existing sub-view container element "' + this.options.selector + '"');
+		}
+		if (el.children().size() == 0) {
+			// we're good here
+		} else if (el.children.size() == 1) {
+			// assume we are re-rendering
+			el.children.at(0).remove();
+		} else {
+			throw new Error('view container element must be empty');
+		}
+		this.subView.render();
+		el.append(this.subView.el);
+	},
+
+	destroy: function() {
+		this.subView.destroy();
+	}
+});
+
+
+/****************************************
+ * MODEL AND COLLECTION
+ ****************************************/
+
 Pages.Collection = Backbone.Collection.extend({
 	/**
 	 * return true if models are currently being fetched
@@ -325,16 +544,13 @@ Pages.Collection = Backbone.Collection.extend({
 	},
 
 	fetch: function(options) {
-		options = onFetchOptions(this, options);
+		options = wrapFetchOptions(this, options);
 		this._fetching = true;
 		Backbone.Collection.prototype.fetch.call(this, options);
 	}
 });
 
 
-/**
- * Model
- */
 Pages.Model = Backbone.Model.extend({
 	/**
 	 * return true if model is currently being fetched
@@ -351,18 +567,26 @@ Pages.Model = Backbone.Model.extend({
 	},
 
 	fetch: function(options) {
-		options = onFetchOptions(this, options);
+		options = wrapFetchOptions(this, options);
 		this._fetching = true;
 		Backbone.Collection.prototype.fetch.call(this, options);
 	}
 });
 
 
+/****************************************
+ * VIEW
+ ****************************************/
+
 /**
  * Backbone view with enhanced fuctionality.  Template rendering, form serialization, sub views, multiple
  * collection handling, additional event delegation, etc...
  */
 Pages.View = Backbone.View.extend({
+
+	// set some defaults
+	templateLoader: Pages.Defaults.templateEngine,
+	contentProvider: Pages.Defaults.contentProvider,
 
   /**
    * You can bind to event 'initialized' to execute post-initialization code
@@ -372,31 +596,12 @@ Pages.View = Backbone.View.extend({
 		// cache of view events for auto-binding
 		this._delegatedViewEvents = {};
 
-		// cache of sub-views and collections
-		this.subViews = [];
-		this.collections = [];
+		this.objectManager = new Pages.Defaults.objectManagerClass(this);
 
-		// set some defaults
-		this.templateLoader = this.templateLoader || Pages.TemplateEngines.defaultEngine;
-		this.contentProvider = this.contentProvider || Pages.ContentProviders.defaultProvider;
-
-		if (options.model) {
+		// FIXME use managed handler
+		if (options && options.model) {
 			this.setModel(options.model);
 		}
-	},
-
-	/**
-	 * Get template content using property 'template' or 'name' and render it using this.getContext as data context
-	 * @trigger 'render:start', 'render:content', 'render:subviews', 'render:collections', 'render:end'
-	 */
-	render: function() {
-		this.trigger('render:start');
-		var content = this.execTemplate(this.getTemplatePath(), this.getContext());
-		this.$el.html(content);
-		this.renderSubViews();
-		this.renderCollections();
-		this.trigger('render:end');
-		return this;
 	},
 
 	/**
@@ -431,41 +636,9 @@ Pages.View = Backbone.View.extend({
 	 * return the data context for template processing
 	 */
 	getContext: function() {
-		return _.extend({}, this.model && this.model.attributes, this.options);
-	},
-
-	/**
-	 * render all collections that were added using addCollection.  this will defer to the collection handler render method.
-	 * the collection handler is defined in options with the addCollection method.
-	 */
-	renderCollections: function() {
-		_.each(this.collections, _.bind(function(collectionData) {
-			collectionData.handler.render();
-		}, this));
-	},
-
-	/**
-	 * render all subviews that were added using addSubView
-	 */
-	renderSubViews: function() {
-		_.each(this.subViews, _.bind(function(viewData) {
-			var el = this.$el.find(viewData.selector);
-			if (el.size() != 1) {
-				console.log(this.$el.html());
-				throw new Error('non-unique or non-existing sub-view container element "' + viewData.selector + '"');
-			}
-			if (el.children().size() == 0) {
-				// we're good here
-			} else if (el.children.size() == 1) {
-				// assume we are re-rendering
-				el.children.ad(0).remove();
-			} else {
-				throw new Error('view container element must be empty');
-			}
-			viewData.view.render();
-			el.append(viewData.view.el);
-		}, this));
-		return this;
+		var context = {};
+		this.objectManager.exec('model', 'context', [context]);
+		return _.defaults(context, this.options);
 	},
 
 	/**
@@ -477,23 +650,21 @@ Pages.View = Backbone.View.extend({
 	 *    - alias: an alias for the view (for event binding)
 	 * If the sub-view alias is 'foo', the view events could contain, for example, { 'foo:render': 'fooRender' }
 	 */
-	addView: function(selector, view) {
-		var viewData;
-		if (!view) {
-			viewData = selector;
-		} else {
-			viewData = {
-				selector: selector,
-				view: view
-			};
-		}
-		this.subViews.push(viewData);
+	addView: function() {
+		var options = this.viewOptions.apply(this, arguments);
+		return this.objectManager.add(Pages.Defaults.viewAlias, options);
+	},
 
-		// if alias was provided, proxy all sub-view events
-		if (viewData.alias) {
-			viewData._binder = this.eventProxy(viewData.alias, viewData.view);
-		}
-		return view;
+	// (view[, options]) or (alias, view[, options]) or (options)
+	viewOptions: function() {
+		return populateOptions ({
+			arguments: arguments,
+			type: Pages.Defaults.viewAlias,
+			objectClass: Backbone.View,
+			alias: Pages.Defaults.viewAlias,
+			handlerClass: Pages.Defaults.viewHandlerClass,
+			addSelector: true
+		});
 	},
 
 	/**
@@ -505,68 +676,73 @@ Pages.View = Backbone.View.extend({
 	 *    - alias: the alias used for binding to collection events
 	 * If the collection alias is 'foo', the view events could contain, for example, { 'foo:reset': 'fooReset' }
 	 */
-	addCollection: function(collection) {
-		var collectionData = (collection.collection) ? collection : {collection: collection};
-		collection = collectionData.collection;
-		collectionData.handler = collectionData.handler || new DefaultCollectionHandler();
-		this.collections.push(collectionData);
-
-		// initialize & allow handler to auto-bind modifications to view
-		collectionData.handler.init(collectionData, this, collection);
-
-		// if alias was provided, proxy all collection events
-		if (collectionData.alias) {
-			collectionData._binder = this.eventProxy(collectionData.alias, collectionData.collection);
-		}
-		return collection;
+	addCollection: function() {
+		var options = this.collectionOptions.apply(this, arguments);
+		return this.objectManager.add(Pages.Defaults.collectionAlias, options);
 	},
 
-	setModel: function(model) {
-		this._modelBinder && this._modelBinder.off();
-		this.model = model;
-		this._modelBinder = this.eventProxy('model', model);
+	// (collection[, options]) or (alias, collection[, options]) or (options)
+	collectionOptions: function() {
+		return populateOptions ({
+			arguments: arguments,
+			type: Pages.Defaults.collectionAlias,
+			objectClass: Backbone.Collection,
+			alias: Pages.Defaults.collectionAlias,
+			handlerClass: Pages.Defaults.collectionHandlerClass,
+			addSelector: true
+		});
+	},
+
+	setModel: function() {
+		var options = this.modelOptions.apply(this, arguments);
+		return this.objectManager.add(Pages.Defaults.modelAlias, options);
+	},
+
+	// (model[, options]) or (alias, model[, options]) or (options)
+	modelOptions: function() {
+		return populateOptions ({
+			arguments: arguments,
+			type: Pages.Defaults.modelAlias,
+			objectClass: Backbone.Model,
+			alias: Pages.Defaults.modelAlias,
+			handlerClass: Pages.Defaults.modelHandlerClass,
+			addSelector: true
+		});
+	},
+
+	/**
+	 * Get template content using property 'template' or 'name' and render it using this.getContext as data context
+	 * @trigger 'render:start', 'render:content', 'render:subviews', 'render:collections', 'render:end'
+	 */
+	render: function() {
+		this.trigger('rendering');
+		var content = this.execTemplate(this.getTemplatePath(), this.getContext());
+		this.$el.html(content);
+		this.trigger('rendered');
+		return this;
 	},
 
 	/**
 	 * destroy all sub-views and unbind all custom bindings
 	 */
 	destroy: function() {
+		this.undelegateEvents(true);
+
 		// model bindings
 		this._modelBinder && this._modelBinder.off();
 
+		this.objectManager.destroy();
+		delete this.objectManager;
 
-		function unbind(list) {
-			_.each(list, function(data) {
-				data._binder.off();
-			});
-		}
-		// sub views
-		unbind(this.subViews);
-	  subViewCall.call(this, 'destroy');
-		delete this.subViews;
+		delete this._delegatedViewEvents;
 
-		// collections
-		unbind(this.collections);
-		_.each(this.collections, _.bind(function(collectionData) {
-			collectionData.handler.destroy();
-		}, this));
 		return this;
 	},
 
-	/**
-	 * bind to 'all' on object with the provided alias prefix
-	 */
-	eventProxy: function(alias, object) {
-		var eventProxy = new EventProxy(alias, this);
-		object.on('all', eventProxy);
-		return {
-			alias: alias,
-			object: object,
-			off: function() {
-				object.off('all', eventProxy);
-			}
-		}
-	},
+
+	/****************************************
+	 * EVENTS
+	 ****************************************/
 
 	/**
 	 * Provide additional event delegations.  Events without a space will be considered as
@@ -580,7 +756,7 @@ Pages.View = Backbone.View.extend({
 	 * }
 	 */
 	delegateEvents: function(events) {
-		events = defaults.call(this, flatten(events), 'events', true);
+		events = flatten(_.defaults(events || {}, getValue(this, 'events')));
 		if (!events) return;
 		this.undelegateEvents(true);
 		for (var key in events) {
@@ -653,19 +829,6 @@ function EventProxy(alias, context) {
 	}
 }
 
-/**
- * Call a named method on all sub-views
- * @param name the method name
- * Any additional parameters will be method parameters
- */
-function subViewCall(name) {
-	var args = _.toArray(arguments);
-	args.splice(0, 1);
-	_.each(this.subViews, function(viewData) {
-		viewData.view[name].apply(args);
-	});
-}
-
 function getValue(object, prop) {
   if (!(object && object[prop])) return null;
   return _.isFunction(object[prop]) ? object[prop]() : object[prop];
@@ -687,26 +850,30 @@ function flatten(object) {
 	return object;
 }
 
-function defaults(object, prop, doFlatten) {
-	var props = getValue(this, prop);
-	if (doFlatten) props = flatten(props);
-	if (props && props !== object) {
-		for (var key in props) {
-			if (!object) object = {};
-			if (_.isUndefined(object[key])) {
-				object[key] = props[key];
-			}
+function populateOptions (data) {
+	var rtn;
+	if (data.arguments[0] instanceof data.objectClass) {
+		// allow for (object [, options])
+		rtn = data.arguments[1] || {alias: data.alias};
+		rtn[data.type] = data.arguments[0];
+	} else {
+		// allow for (alias, object[, options]) or (options)
+		if (_.isString(data.arguments[0])) {
+			rtn = data.arguments[2] || {};
+			rtn.alias = data.arguments[0];
+			rtn[data.type] = data.arguments[1];
+		} else {
+			rtn = data.arguments[0];
 		}
 	}
-	// FIXME would be nice if I could somehow get super class events and merge them in
-	// but I'm not sure if this is possible
-	// if ($super && $super !== this) {
-	// 	object = defaults.call($super, object, doFlatten);
-	// }
-	return object;
+	if (!rtn.handler) rtn.handler = new data.handlerClass();
+	if (!rtn.alias) rtn.alias = data.alias;
+	if (data.addSelector && !rtn.selector) rtn.selector = Pages.Defaults.selectorGenerator(rtn);
+	if (_.isUndefined(rtn.watch)) rtn.watch = Pages.Defaults.eventWatch;
+	return rtn;
 }
 
-function onFetchOptions(model, options) {
+function wrapFetchOptions(model, options) {
 	options = options || {};
 	var _success = options.success;
 	function success() {

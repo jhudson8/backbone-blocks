@@ -4,7 +4,7 @@ $(document).ready(function() {
 		view1: 'This is view 1 content <button>Click me</button>',
 		view2: 'This is view 2 content',
 		main: {
-			template: 'should be view 1<div id="view1"> </div><br><br>should be view 2<div id="view2"></div> <br><br><div class="items"></div>',
+			template: 'should be view 1<div class="view1"> </div><br><br>should be view 2<div class="view2"></div> <br><br><div class="items"></div>',
 			'items-item': '<%= firstName %> <%= lastName %>',
 			'items-empty': 'Nothing to see here',
 			'items-loading': 'Loading...'
@@ -25,60 +25,34 @@ $(document).ready(function() {
 		template: 'view2'
 	});
 
-	var _main = Pages.View.extend({
+	var main = Pages.View.extend({
 		el: '#main',
 		template: 'main',
-		
-		// FIXME these events *should be* delegated
-		events: {
-			'view2:rendered': 'dummy'
-		},
 
-		dummy: function() {
-			// alert('dummy1');
-		},
-		
-		initialize: function() {
-			Pages.View.prototype.initialize.apply(this, arguments);
-			
-			this.addView({
-				view: new view1(),
-				selector: '#view1',
-				alias: 'view1'
-			});
-			this.addView({
-				view: new view2(),
-				selector: '#view2',
-				alias: 'view2'
-			});
-		}
-	});
-
-	var main = _main.extend({
 		events: {
 			view1: {
-				'rendered': 'dummy2',
+				'rendered': 'view1Rendered',
 				'clicked': 'view1Clicked'
 			}
 		},
 
+		initialize: function() {
+			Pages.View.prototype.initialize.apply(this, arguments);
+
+			var collection = new Pages.Collection();
+			collection._fetching = true;
+			this.items = this.addCollection('items', collection, {fetch: false, watch: true});
+
+			this.addView('view1', new view1(), {watch: true});
+			this.addView('view2', new view2(), {watch: true});
+		},
+		
 		view1Clicked: function() {
 			alert('clicked');
 		},
 
-		initialize: function() {
-			_main.prototype.initialize.apply(this, arguments);
-			var collection = new Pages.Collection();
-			collection._fetching = true;
-			this.items = this.addCollection({
-				selector: '.items',
-				alias: 'items',
-				collection: collection
-			});
-		},
-
-		dummy2: function() {
-			// alert('dummy2');
+		view1Rendered: function() {
+			console.log('view 1 rendered');
 		}
 	});
 				
@@ -107,9 +81,12 @@ $(document).ready(function() {
 			setTimeout(function() {
 				console.log('reset items');
 				main.items.reset();
+				
+				main.destroy();
 			}, 1000);
 			
 		}, 1000);
 		
 	}, 1000);
+
 });

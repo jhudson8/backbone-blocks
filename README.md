@@ -1,8 +1,9 @@
 Backbone Pages is an application framework built on top of backbone.  It features
  * Extremely pluggable/extendable
  * Advanced view events
- * Multiple auto-bound view collections
- * Views with sub-views
+ * Can have multiple auto-bound view collections, models, and sub-views
+ * And multiple auto-bound models
+ * And also multiple sub-views
  * Mixins
  * View/collection event bubbling
  * Model/form serialization

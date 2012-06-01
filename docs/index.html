@@ -1,0 +1,63 @@
+<html>
+	<head>
+		<script src="../lib/underscore.js"></script>
+		<script src="../lib/jquery-1.7.2.js"></script>
+		<script src="../lib/jquery-ui-1.8.20.custom.js"></script>
+		<script src="../lib/backbone.js"></script>
+		<script src="../lib/backbone-pages.js"></script>
+		<script src="handlebars.js"></script>
+		<script src="docs-api-models.js"></script>
+		<script src="docs.js"></script>
+		
+		<style type="text/css">
+			#sidebar {
+				float: left;
+				width: 180px;
+				overflow: scroll;
+			}
+			.page {
+				margin-left: 190px;
+			}
+			.section-label {
+				margin-top: 6px;
+				border-bottom: solid 1px #ccc;
+			}
+			.mini .classes {
+				margin-left: 6px;
+			}
+			.mini .methods {
+				margin-left: 8px;
+			}
+			.mini .class-label {
+				padding-top: 6px;
+			}
+			.methods-text {
+				font-weight: bold;
+				border-bottom: solid 1px #ccc;
+			}
+			.method-label {
+				padding-top: 8px;
+			}
+			.mini .method-label {
+				padding-top: 0;
+			}
+			.description {
+				margin-left: 8px;
+			}
+			.parameters {
+				margin-left: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="layout">
+			<div class="top-nav">
+				<h2>Backbone Pages API</h2>
+			</div>
+			<div class="body">
+				<div id="sidebar"></div>
+				<div class="page"></div>
+			</div>
+		</div>
+	</body>
+</html>

@@ -50,14 +50,14 @@ $(document).ready(function() {
 		initialize: function() {
 			this.$uper('initialize', arguments);
 			
-			this.people = this.addCollection({
+			this.people = this.setCollection({
 				collection: new People(),
 				alias: 'people',
 				selector: '#people'
 				// handler: some other collection hander; Pages.CollectionHandlers.Default is the default
 			});
 
-			this.places = this.addCollection({
+			this.places = this.setCollection({
 				collection: new Places(),
 				alias: 'places',
 				selector: '#places'

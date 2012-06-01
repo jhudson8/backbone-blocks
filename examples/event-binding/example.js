@@ -3,7 +3,7 @@ $(document).ready(function() {
 	Pages.templates = {
 		sub: '<button>Click me</button>',
 		main: {
-			template: '<div id="subView"></div> <div id="things"></div> <div id="log"></div>',
+			template: 'JOE -- <div class="subView"></div> <div class="things"></div> <div class="log"></div>',
 			'things-empty': ''
 		}
 	}
@@ -26,7 +26,7 @@ $(document).ready(function() {
 		template: 'main',
 		
 		events: {
-			myView: {
+			subView: {
 				'clicked': 'onSubViewClicked',
 				'all': 'onAllViewEvents'
 			},
@@ -39,15 +39,15 @@ $(document).ready(function() {
 
 			var subView = this.addView({
 				view: new SubView({value: 'Hello World'}),
-				selector: '#subView',
-				alias: 'myView'
+				alias: 'subView',
+				watch: true
 			});
 
 			this.addCollection({
 				alias: 'things',
-				selector: '#things',
 				collection: options.things,
-				fetch: false
+				fetch: false,
+				watch: true
 			});
 		},
 
@@ -70,14 +70,14 @@ $(document).ready(function() {
 		log: function(text) {
 			this._log = this._log || '';
 			this._log += '<p>' + text + '</p>';
-			this.$('#log').html(this._log);
+			this.$('.log').html(this._log);
 		}
 	});
 	
 	var main = new MainView({
-		model: viewModel,
 		things: things
 	});
+	main.setModel(viewModel, {fetch: false});
 	main.render();
 	
 	things.reset();

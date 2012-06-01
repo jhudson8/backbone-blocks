@@ -1,145 +1,8 @@
-var Pages = {
-	Defaults: {
-		modelAlias: 'model',
-		collectionAlias: 'collection',
-		viewAlias: 'view',
-		collectionContainerClass: 'bp_col-container',
-		subviewContainerClass: 'bp_sv-container',
-		modelContainerClass: 'bp_mdl-container',
-		eventWatch: false,
-		selectorGenerator: function(options) { return '.' + options.alias; }
-	}
-};
+var Pages = {};
 
 (function() {
 // Cached regex to split keys for `delegate`.
 var delegateEventSplitter = /^(\S+)\s*(.*)$/;
-
-
-/****************************************
- * MANAGED OBJECTS
- ****************************************/
-Pages.ObjectManager = function(parent) {
-	this.parent = parent;
-	this.managedObjects = {};
-};
-_.extend(Pages.ObjectManager.prototype, {
-	get: function(type, alias) {
-		var l = this.managedObjects[type];
-		if (!type) return;
-		for (var i=0; i<l.length; i++) {
-			if (l[i].alias === alias) return l;
-		}
-	},
-
-	getAll: function(type) {
-		return this.managedObjects[type] || [];
-	},
-
-	add: function(type, options) {
-		var l = this.managedObjects[type];
-		if (!l) {
-			l = this.managedObjects[type] = [];
-		}
-		for (var i=0; i<l.length; i++) {
-			if (l[i].alias === options.alias) {
-				throw new Error('Existing managed ' + type + ' "' + options.alias + '"');
-			}
-		}
-		
-		var object = options[type];
-		// initialize and allow auto-binding from the context object to the view
-		options.handler.init && options.handler.init(this.parent, object, options);
-		// if alias was provided, proxy all sub-view events
-		if (options.alias && options.watch) {
-			options._binder = this.eventProxy(options.alias, object);
-		}
-		
-		// auto-bind all 'event' references from the handler
-		var events = flatten(options.handler.events);
-		if (events) {
-			var bindings = [];
-			for (name in events) {
-				var method = events[name];
-				if (method) {
-					if (_.isString(method)) {
-						method = options.handler[method];
-						if (!_.isFunction(method)) {
-							throw new Error('Invalid managed object event "' + method + '"; is not a valid function name');
-						}
-					}
-					var bound = _.bind(method, options.handler);
-					var target = object;
-					var pattern = /^parent:/;
-					if (name.match(pattern)) {
-						// the 'parent' token has been referenced, bind to the parent instead
-						name = name.replace(pattern, '');
-						target = this.parent;
-					}
-					target.bind(name, bound);
-					bindings.push({target: target, event: name, func: bound});
-				}
-			}
-			options._bindings = bindings;
-		}
-		
-		l.push(options);
-		return options[type];
-	},
-
-	/**
-	 * bind to 'all' on object with the provided alias prefix
-	 */
-	eventProxy: function(alias, object) {
-		var eventProxy = new EventProxy(alias, this.parent);
-		object.on('all', eventProxy);
-		return {
-			alias: alias,
-			object: object,
-			off: function() {
-				object.off('all', eventProxy);
-			}
-		}
-	},
-
-	exec: function(type, method, args) {
-		// allow usage without type param to indicate all types
-		if (!method || !_.isString(method)) {
-			args = method;
-			method = type;
-			type = undefined;
-		}
-
-		function exec(l) {
-			_.each(l, function(obj) {
-				var func = obj.handler[method];
-				func && func.apply(obj.handler, args);
-			});
-		}
-
-		if (!type) {
-			for (var type in this.managedObjects) {
-				exec(this.managedObjects[type]);
-			}
-		} else {
-			exec(this.getAll(type));
-		}
-	},
-
-	destroy: function() {
-		for (var type in this.managedObjects) {
-			_.each(this.managedObjects[type], function(obj) {
-				if (obj._bindings) {
-					_.each(obj._bindings, function(binding) {
-						binding.target.off(binding.event, binding.func);
-					});
-				}
-				obj.handler.destroy();
-			});
-		}
-	}
-});
-Pages.Defaults.objectManagerClass = Pages.ObjectManager;
 
 
 /**************************************************
@@ -164,7 +27,6 @@ Pages.TemplateEngines = {
 		}
 	}
 };
-Pages.Defaults.templateEngine = Pages.TemplateEngines.Underscore;
 
 
 /**
@@ -221,17 +83,54 @@ Pages.ContentProviders = {
 		};
 	}
 };
-Pages.Defaults.contentProvider = new Pages.ContentProviders.HashProvider();
 
 
-
+/**************************************************
+ * DEFAULT HANDLER IMPLS
+ **************************************************/
 Pages.ModelHandlers = {};
-Pages.ModelHandlers.Simple = Pages.Defaults.modelHandlerClass = function() {};
-_.extend(Pages.ModelHandlers.Simple.prototype, {
+
+/**
+ * Base handler that provides utility methods to get selector value and bind events
+ */
+Pages.ModelHandlers.BaseElementHandler = {
+	getElement: function (selector) {
+		selector = selector || this.options.selector;
+		var el;
+		try {
+			el = this.view.$el.find(selector);
+		} catch (e) {
+			throw new Error('invaild selector "' + selector + '"; ' + e);
+		}
+		if (el.size() > 1) {
+			console.log(el.html());
+			throw new Error('Non-unique "' + selector + '"');
+		}
+		return el;
+	},
+
+	elBind: function (eventName, selector, fName) {
+		var func = _.isString(fName) ? this[fName] : fName;
+		if (!func) throw new Error ('Invalid function name "' + fName + '"');
+		func = _.bind(func, this);
+		if (!selector) {
+			this.view.$el.bind(eventName, func);
+		} else {
+			this.view.$el.delegate(selector, eventName, func);
+		}
+	}
+};
+
+/**
+ * Simple model handler that does nothing but add this model data to a context
+ */
+Pages.ModelHandlers.ViewTemplate = function() {};
+_.extend(Pages.ModelHandlers.ViewTemplate.prototype, {
 
 	init: function(view, model, options) {
 		this.model = model;
 		this.alias = options.alias;
+		this.options = options;
 		if (_.isUndefined(options.fetch) || options.fetch) {
 			if (!model.isPopulated || (!model.isPopulated() && !model.isFetching())) {
 				model.fetch(options);
@@ -249,6 +148,7 @@ _.extend(Pages.ModelHandlers.Simple.prototype, {
 	}
 });
 
+
 /****************************************
  * DEFAULT COLLECTION HANDLER
  ****************************************/
@@ -263,8 +163,8 @@ _.extend(Pages.ModelHandlers.Simple.prototype, {
  * - onReset: called when the collection was reset
  */
 Pages.CollectionHandlers = {};
-Pages.CollectionHandlers.TemplateBound = Pages.Defaults.collectionHandlerClass = function() {};
-_.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
+Pages.CollectionHandlers.TemplateBound = function() {};
+_.extend(Pages.CollectionHandlers.TemplateBound.prototype, Pages.ModelHandlers.BaseElementHandler, {
 
 	events: {
 		'add': 'onAdd',
@@ -290,16 +190,8 @@ _.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
 	 * onAdd will be called.
 	 */
 	render: function() {
-		var el;
-		try {
-			el = this.el = this.view.$el.find(this.options.selector);
-		} catch (e) {
-			throw new Error('invaild selector "' + this.options.selector + '"; ' + e);
-		}
-		if (el.size() != 1) {
-			console.log(el.html());
-			throw new Error('Non-unique or empty collection selector "' + this.options.selector + '"');
-		}
+		var el = this.el = this.getElement();
+		if (el.size() == 0) return;
 
 		// clear out existing content
 		el.html('');
@@ -348,7 +240,7 @@ _.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
 			itemEl = data.$el;
 			this.subViews[model.id] = data;
 		} else {
-			itemEl = $(this.itemContainer(model));
+			itemEl = $(this.itemTemplateContainer(model));
 			itemEl.append(data);
 		}
 
@@ -435,7 +327,7 @@ _.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
 	 * return the element container for item data (if was HTML string)
 	 * @param model the item model
 	 */
-	itemContainer: function(model) {
+	itemTemplateContainer: function(model) {
 		return this.view.make('div');
 	},
 
@@ -444,7 +336,7 @@ _.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
 	 * @param model the item model
 	 */
 	getTemplatePath: function(model) {
-		var prefix = (this.view.template || this.view.name) + '/' + (this.options.alias || 'items');
+		var prefix = this.view.getTemplatePath() + '/' + (this.options.alias || 'items');
 		if (model) {
 			return prefix + '-item';
 		} else {
@@ -483,8 +375,8 @@ _.extend(Pages.CollectionHandlers.TemplateBound.prototype, {
  * the default but it allows us to use a managed object to deal with subviews in a standard way.
  */
 Pages.SubViewHandlers = {};
-var defaultSubViewHandler = Pages.Defaults.viewHandlerClass = function() {}
-_.extend(defaultSubViewHandler.prototype, {
+Pages.SubViewHandlers.Simple = function() {}
+_.extend(Pages.SubViewHandlers.Simple.prototype, Pages.ModelHandlers.BaseElementHandler, {
 	events: {
 		'parent:rendered': 'render'
 	},
@@ -496,16 +388,8 @@ _.extend(defaultSubViewHandler.prototype, {
 	},
 
 	render: function() {
-		var el;
-		try {
-			el = this.el = this.view.$el.find(this.options.selector);
-		} catch (e) {
-			throw new Error('invaild selector "' + this.options.selector + '"; ' + e);
-		}
-		if (el.size() != 1) {
-			console.log(this.view.$el.html());
-			throw new Error('non-unique or non-existing sub-view container element "' + this.options.selector + '"');
-		}
+		var el = this.getElement();
+
 		if (el.children().size() == 0) {
 			// we're good here
 		} else if (el.children.size() == 1) {
@@ -563,7 +447,11 @@ Pages.Model = Backbone.Model.extend({
 	 * return true if data has been fetched and populated
 	 */
 	isPopulated: function() {
-		return this._populated;
+		if (this._populated) return true;
+		for (var prop in this.attributes) {
+			return true;
+		}
+		return false;
 	},
 
 	fetch: function(options) {
@@ -584,10 +472,6 @@ Pages.Model = Backbone.Model.extend({
  */
 Pages.View = Backbone.View.extend({
 
-	// set some defaults
-	templateLoader: Pages.Defaults.templateEngine,
-	contentProvider: Pages.Defaults.contentProvider,
-
   /**
    * You can bind to event 'initialized' to execute post-initialization code
    * @trigger 'initialized'
@@ -596,19 +480,23 @@ Pages.View = Backbone.View.extend({
 		// cache of view events for auto-binding
 		this._delegatedViewEvents = {};
 
+		this.templateLoader = Pages.Defaults.templateEngine;
+		this.contentProvider = Pages.Defaults.contentProvider;
 		this.objectManager = new Pages.Defaults.objectManagerClass(this);
 
 		// FIXME use managed handler
 		if (options && options.model) {
 			this.setModel(options.model);
 		}
+
+		this.init && this.init(options);
 	},
 
 	/**
 	 * Return the template path for this view
 	 */
 	getTemplatePath: function() {
-		return this.template || this.name;
+		return getValue(this, 'template') || getValue(this, 'name');
 	},
 
 	/**
@@ -638,7 +526,17 @@ Pages.View = Backbone.View.extend({
 	getContext: function() {
 		var context = {};
 		this.objectManager.exec('model', 'context', [context]);
-		return _.defaults(context, this.options);
+		return _.defaults(context, this);
+	},
+
+	mixin: function(obj, options) {
+		if (!this.mixinId) this.mixinId = 0;
+		options = options || {};
+		if (!options.alias) options.alias = ('mixin_' + ++this.mixinId); // alias would only be set if it needed to be removed later
+		options.mixin = this; // 'mixin' prop represent context object (object that the handler will get event auto-bind to)
+		options.handler = obj; // the handler in this case will be the mixin
+		this.objectManager.add('mixin', options);
+		return this;
 	},
 
 	/**
@@ -693,7 +591,7 @@ Pages.View = Backbone.View.extend({
 		});
 	},
 
-	setModel: function() {
+	addModel: function() {
 		var options = this.modelOptions.apply(this, arguments);
 		return this.objectManager.add(Pages.Defaults.modelAlias, options);
 	},
@@ -817,6 +715,147 @@ _.each([Pages.View, Pages.Model, Pages.Collection], function(obj) {
 });
 
 
+/****************************************
+ * MANAGED OBJECTS
+ ****************************************/
+Pages.ObjectManager = function(parent) {
+	this.parent = parent;
+	this.managedObjects = {};
+};
+_.extend(Pages.ObjectManager.prototype, {
+	get: function(type, alias) {
+		var l = this.managedObjects[type];
+		if (!type) return;
+		for (var i=0; i<l.length; i++) {
+			if (l[i].alias === alias) return l;
+		}
+	},
+
+	remove: function(type, alias) {
+		var l = this.managedObjects[type];
+		if (!type) return;
+		for (var i=0; i<l.length; i++) {
+			if (l[i].alias === alias) {
+				l[i].handler.destroy && l[i].handler.destroy();
+				delete l[i];
+				return true;
+			}
+		}
+	},
+
+	getAll: function(type) {
+		return this.managedObjects[type] || [];
+	},
+
+	add: function(type, options) {
+		var l = this.managedObjects[type];
+		if (!l) {
+			l = this.managedObjects[type] = [];
+		}
+		for (var i=0; i<l.length; i++) {
+			if (l[i].alias === options.alias) {
+				throw new Error('Existing managed ' + type + ' "' + options.alias + '"');
+			}
+		}
+		
+		var object = options[type];
+		// initialize and allow auto-binding from the context object to the view
+		var initArgs = [this.parent, object, options];
+		if (this.parent === object) {
+			// special case, if context object is same as parent init with parent, options
+			initArgs = [this.parent, options];
+		} else {
+			// no need to bind parent event to itself
+			options._binder = this.eventProxy(options.alias, object);
+		}
+		options.handler.init && options.handler.init.apply(options.handler, initArgs);
+
+		// auto-bind all 'event' references from the handler
+		var events = flatten(options.handler.events);
+		if (events) {
+			var bindings = [];
+			for (name in events) {
+				var method = events[name];
+				if (method) {
+					if (_.isString(method)) {
+						method = options.handler[method];
+						if (!_.isFunction(method)) {
+							throw new Error('Invalid managed object event "' + method + '"; is not a valid function name');
+						}
+					}
+					var bound = _.bind(method, options.handler);
+					var target = object;
+					var pattern = /^parent:/;
+					if (name.match(pattern)) {
+						// the 'parent' token has been referenced, bind to the parent instead
+						name = name.replace(pattern, '');
+						target = this.parent;
+					}
+					target.bind(name, bound);
+					bindings.push({target: target, event: name, func: bound});
+				}
+			}
+			options._bindings = bindings;
+		}
+		
+		l.push(options);
+		return options[type];
+	},
+
+	/**
+	 * bind to 'all' on object with the provided alias prefix
+	 */
+	eventProxy: function(alias, object) {
+		var eventProxy = new EventProxy(alias, this.parent);
+		object.on('all', eventProxy);
+		return {
+			alias: alias,
+			object: object,
+			off: function() {
+				object.off('all', eventProxy);
+			}
+		}
+	},
+
+	exec: function(type, method, args) {
+		// allow usage without type param to indicate all types
+		if (!method || !_.isString(method)) {
+			args = method;
+			method = type;
+			type = undefined;
+		}
+
+		function exec(l) {
+			_.each(l, function(obj) {
+				var func = obj.handler[method];
+				func && func.apply(obj.handler, args);
+			});
+		}
+
+		if (!type) {
+			for (var type in this.managedObjects) {
+				exec(this.managedObjects[type]);
+			}
+		} else {
+			exec(this.getAll(type));
+		}
+	},
+
+	destroy: function() {
+		for (var type in this.managedObjects) {
+			_.each(this.managedObjects[type], function(obj) {
+				if (obj._bindings) {
+					_.each(obj._bindings, function(binding) {
+						binding.target.off(binding.event, binding.func);
+					});
+				}
+				obj.handler.destroy && obj.handler.destroy();
+			});
+		}
+	}
+});
+
+
 // PRIVATE CLASSES AND METHODS //
 function EventProxy(alias, context) {
 	return function(event) {
@@ -874,12 +913,14 @@ function populateOptions (data) {
 }
 
 function wrapFetchOptions(model, options) {
+	model.trigger('fetching');
 	options = options || {};
 	var _success = options.success;
 	function success() {
 		model._fetching = false;
 		model._populated = true;
 		options.success && options.success.apply(model, arguments);
+		model.trigger('fetched');
 	}
 	var _error = options.error;
 	function error() {
@@ -889,6 +930,23 @@ function wrapFetchOptions(model, options) {
 	options.success = success;
 	options.error = error;
 	return options;
+}
+
+Pages.Defaults = {
+	objectManagerClass: Pages.ObjectManager,
+	templateEngine: Pages.TemplateEngines.Underscore,
+	contentProvider: new Pages.ContentProviders.HashProvider(),
+	modelHandlerClass: Pages.ModelHandlers.ViewTemplate,
+	collectionHandlerClass: Pages.CollectionHandlers.TemplateBound,
+	viewHandlerClass: Pages.SubViewHandlers.Simple,
+	modelAlias: 'model',
+	collectionAlias: 'collection',
+	viewAlias: 'view',
+	collectionContainerClass: 'bp_col-container',
+	subviewContainerClass: 'bp_sv-container',
+	modelContainerClass: 'bp_mdl-container',
+	eventWatch: false,
+	selectorGenerator: function(options) { return '.' + options.alias; }
 }
 
 })();

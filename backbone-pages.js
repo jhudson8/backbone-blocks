@@ -147,14 +147,14 @@ _.extend(Pages.Handler.ContextContributor.prototype, {
 
 		// determind what should be put into the context
 		if (modelOrCollection instanceof Backbone.Collection) {
-			defaultAlias = Pages.Defaults.collectionAlias;
 			context[this.options.alias] = modelOrCollection.models;
 		} else {
-			if (this.options.alias === defaultAlias) {
+			// assume a Model
+			if (this.options.alias === Pages.Defaults.modelAlias) {
 				// single model, go staight to attributes
-				_.defaults(context, modelOrCollection);
+				_.defaults(context, modelOrCollection.attributes);
 			} else {
-				context[this.alias] = modelOrCollection.models || modelOrCollection.attributes;
+				context[this.alias] = modelOrCollection.attributes;
 			}
 		}
 	}
@@ -206,7 +206,8 @@ _.extend(Pages.Handler.SimpleSubView.prototype, Pages.Handler.BaseElementHandler
  * MODEL AND COLLECTION
  ****************************************/
 
-Pages.Collection = Backbone.Collection.extend({
+var _collectionFetch = Backbone.Collection.prototype.fetch;
+_.extend(Backbone.Collection.prototype, {
 	/**
 	 * return true if models are currently being fetched
 	 */
@@ -224,14 +225,14 @@ Pages.Collection = Backbone.Collection.extend({
 	fetch: function(options) {
 		options = wrapFetchOptions(this, options);
 		this._fetching = true;
-		Backbone.Collection.prototype.fetch.call(this, options);
+		_collectionFetch.call(this, options);
 	}
 });
 
-
-Pages.Model = Backbone.Model.extend({
+var _modelFetch = Backbone.Model.prototype.fetch;
+_.extend(Backbone.Model.prototype, {
 	/**
-	 * return true if model is currently being fetched
+	 * return true if models are currently being fetched
 	 */
 	isFetching: function() {
 		return this._fetching;
@@ -242,8 +243,8 @@ Pages.Model = Backbone.Model.extend({
 	 */
 	isPopulated: function() {
 		if (this._populated) return true;
-		for (var prop in this.attributes) {
-			return true;
+		for (var name in attributes) {
+			if (name != 'id') return true;
 		}
 		return false;
 	},
@@ -251,7 +252,7 @@ Pages.Model = Backbone.Model.extend({
 	fetch: function(options) {
 		options = wrapFetchOptions(this, options);
 		this._fetching = true;
-		Backbone.Collection.prototype.fetch.call(this, options);
+		_modelFetch.call(this, options);
 	}
 });
 
@@ -266,10 +267,6 @@ Pages.Model = Backbone.Model.extend({
  */
 Pages.View = Backbone.View.extend({
 
-	autoAddModel: true,
-	autoAddCollection: true,
-	bubbleUpEvents: false,
-
   /**
    * You can bind to event 'initialized' to execute post-initialization code
    * @trigger 'initialized'
@@ -282,10 +279,10 @@ Pages.View = Backbone.View.extend({
 		this.contentProvider = Pages.Defaults.contentProvider;
 		this.objectManager = new Pages.Defaults.objectManagerClass(this);
 
-		if (options && options.model && this.autoAddModel) {
+		if (options && options.model &&  Pages.Defaults.autoAddModel) {
 			this.addModel(options.model);
 		}
-		if (options && options.collection && this.autoAddCollection) {
+		if (options && options.collection && Pages.Defaults.autoAddCollection) {
 			this.addCollection(options.collection);
 		}
 
@@ -296,7 +293,7 @@ Pages.View = Backbone.View.extend({
 	 * Return the template path for this view
 	 */
 	getTemplatePath: function() {
-		return getValue(this, 'template') || getValue(this, 'name');
+		return getValue(this, 'template') || getValue(this, 'name') || 'template';
 	},
 
 	/**
@@ -362,7 +359,7 @@ Pages.View = Backbone.View.extend({
 			alias: Pages.Defaults.viewAlias,
 			handlerClass: Pages.Defaults.viewHandlerClass,
 			addSelector: true,
-			bubbleUp: this.bubbleUpEvents
+			bubbleUp: Pages.Defaults.bubbleViewEvents
 		});
 	},
 
@@ -389,7 +386,7 @@ Pages.View = Backbone.View.extend({
 			alias: Pages.Defaults.collectionAlias,
 			handlerClass: Pages.Defaults.collectionHandlerClass,
 			addSelector: true,
-			bubbleUp: this.bubbleUpEvents
+			bubbleUp: Pages.Defaults.bubbleCollectionEvents
 		});
 	},
 
@@ -506,7 +503,7 @@ Pages.View = Backbone.View.extend({
 });
 
 // apply the $uper function
-_.each([Pages.View, Pages.Model, Pages.Collection], function(obj) {
+_.each([Pages.View, Backbone.Model, Backbone.Collection], function(obj) {
 	// THIS CAN ONLY BE CALLED WITHIN FUNCTIONS THAT ARE DEFINED ON A CLASS WHICH IS NOT MEANT TO BE EXTENDED
 	obj.prototype.$uper = function $uper (name, arguments) {
 		this.constructor.__super__[name].apply(this, arguments);
@@ -811,7 +808,12 @@ Pages.Defaults = {
 	collectionContainerClass: 'bp_col-container',
 	subviewContainerClass: 'bp_sv-container',
 	modelContainerClass: 'bp_mdl-container',
-	selectorGenerator: function(options) { return '.' + options.alias; }
+	selectorGenerator: function(options) { return '.' + options.alias; },
+	autoAddModel: true,
+	autoAddCollection: true,
+	bubbleCollectionEvents: false,
+	bubbleModelEvents: false,
+	bubbleViewEvents: false
 }
 
 })();

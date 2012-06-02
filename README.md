@@ -1,13 +1,24 @@
-Backbone Pages is an application framework built on top of backbone.  It features
- * Extremely pluggable/extendable
- * Advanced view events
- * Can have multiple auto-bound view collections, models, and sub-views
- * And multiple auto-bound models
- * And also multiple sub-views
- * Mixins
- * View/collection event bubbling
- * Model/form serialization
- * Pluggable template engine / content provider
+Pages is an application framework built on top of [Backbone](http://www.backbone.js.org)
 
- * [Wiki Docs](https://github.com/jhudson8/backbone-pages/wiki)
+It was created for several reasons:
+* Enable 3rd parties to provide plugins to replace default behavior
+* Provide enhanced support for events
+* Encapsulate DRY code
+* Allow modular routers to be downloaded only when associated routes are hit
+
+Although many common plugin implementations will be available within this project, 3rd party contributions are welcome.
+
+### Plugins
+* Content Provider: used to provide content (usually for templates)
+* Template Engine: used to merge content with data
+* I18N
+* Module Loader: used to lazy load router code
+* Object Manager: encapsulates handling of all view plugins
+* View Handlers: things that respond to events that are meaningful to a view
+  * Subview: allow views to contain other views
+  * Model: allow views to contain models that make UI contributions
+  * Collection: allow views to contain collections that make UI contributions
+  * Mixin: provide additional functionality to views
+
+[Wiki Docs](https://github.com/jhudson8/backbone-pages/wiki)
 

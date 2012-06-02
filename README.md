@@ -9,7 +9,5 @@ Backbone Pages is an application framework built on top of backbone.  It feature
  * Model/form serialization
  * Pluggable template engine / content provider
 
-More documentation to come but if you like examples:
- * [API Docs](http://jhudson8.github.com/backbone-pages/docs/index.html) (work in progress)
- * [Examples](https://github.com/jhudson8/backbone-pages/tree/gh-pages/examples) (are a tiny bit stale and a work in progress)
+ * [Wiki Docs](https://github.com/jhudson8/backbone-pages/wiki)
 

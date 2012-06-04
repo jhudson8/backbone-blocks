@@ -21,5 +21,6 @@ Although many common plugin implementations will be available within this projec
   * Mixin: provide additional functionality to views
 
 [Learn more about Pages in the Wiki](https://github.com/jhudson8/backbone-pages/wiki)
+
 [API Docs](http://jhudson8.github.com/backbone-pages/docs/index.html) (work in progress)
 

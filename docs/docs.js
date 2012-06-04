@@ -4,32 +4,36 @@ Pages.templates = {
 	'api-section':
 			'<div class="section-label">{{name}}</div> <div class="classes"></div>',
 	'api-class':
-			'<div class="class-label">{{name}}</div> <p>{{linkScan descr}}</p> <div class="methods-text">Methods</div><div class="methods"></div>',
+			'<h1 class="page-title">{{name}}</h1> <p>{{linkScan descr}}</p> <ul id="method-list" class="methods method-list"></ul>',
 	'api-method': {
-		template: '<div class="method-label method-{{name}}">{{name}}</div> <p class="description">{{linkScan descr}}</p> <div class="parameters"></div>',
+		template: '<li id="post-80" class="keynav hentry p5 post publish category-global-ajax-event-handlers category-1.0 untagged y2009 m11 d14 h11 core withoutfocus">\
+				<h2 class="entry-title">.{{name}} ( {{parametersShort}} )</h2>\
+				<p class="desc">{{linkScan descr}}</p>\
+				<p class="parameters"</p></li>',
 		'parameters-empty': 'there are no parameters'
 	},
 	'api-parameter':
-			'<div class="parameter-label">{{name}} (<span class="type"></span>)</div> <p class="description">{{linkScan descr}}</p>',
-
+			'<p class="arguement"><strong>{{name}}</strong><span class="argument-type">({{argumentType}})</span> {{linkScan descr}} </p>',
 	'mini-api-index':
 			'<div class="sections mini"></div>',
 	'mini-api-section':
-			'<div class="section-label">{{name}}</div> <div class="classes"></div>',
+			'<h2 class="jq-clearfix roundTop section-title"><a href="#">{{name}}</a></h2>\
+			<div class="roundBottom jq-box"><ul class="xoxo"><li><ul class="classes"></ul></li></ul></div>',
 	'mini-api-class':
-			'<div class="class-label"><a href="#api/{{name}}">{{name}}</a></div> <div class="methods"></div>',
+			'<li><a href="#api/{{name}}">{{name}}</a>\
+			<div class="methods"></div>\
+			</li>',
 	'mini-api-method': {
-		template: '<div class="method-label"><a href="#api/{{methodClass}}#{{name}}">{{name}}</a> ( {{parametersShort}} )</div>',
+		template: '<div class="method-label"><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></div>',
 		'parameters-empty': 'there are no parameters'
 	},
 }
 
+
 // use a handlebars template engine
-Pages.Defaults.templateEngine = {
-	load: function(content) {
-		return Handlebars.compile(content);
-	}
-}
+Pages.Defaults.templateEngine = Pages.Handler.Template.Handlebars;
+Pages.Defaults.collectionHandlerClass = Pages.Handler.Collection.ItemView;
+
 var linkPattern = /#\{link:([^}|]*)\|?([^}]*)\}/;
 Handlebars.registerHelper("linkScan", function(val) {
 	if (!val) return val;
@@ -46,6 +50,7 @@ Handlebars.registerHelper("linkScan", function(val) {
 	}
 	return new Handlebars.SafeString(val);
 });
+
 
 var views = {};
 function miniTemplate() {
@@ -173,8 +178,8 @@ var Router = Backbone.Router.extend({
 	  if (this.view) this.view.destroy();
 	  this.view = view;
 	  view.render();
-	  $('.page').html('');
-	  $('.page').append(view.el);
+	  $('#jq-primaryContent').html('');
+	  $('#jq-primaryContent').append(view.el);
 	  window.scrollTo(0, 0);
   }
 });
@@ -183,7 +188,7 @@ var Router = Backbone.Router.extend({
 $(document).ready(function() {
 	new Router();
 
-	apiIndex = new views.APIIndex({sections: data.apiSections, mini: true, el: '#sidebar'});
+	apiIndex = new views.APIIndex({sections: data.apiSections, mini: true, el: '#jq-interiorNavigation'});
 	apiIndex.render();
 
 	Backbone.history.start();

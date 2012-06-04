@@ -21,12 +21,22 @@ modelData.api = {
 				descr: 'Responsible for retrieving content which will usually be used as the input for template rendering.  This is a syncronous API.',
 				defaultImpl: 'Pages.ContentProviders.HashProvider',
 				methods: {
+					getAndRender: {
+						descr: 'Get the requested content as identified by the path *and* use the default template engine to render the contents as a template. \
+						  This is more than just a convenienance method as it allows cacheing of templates according to path as opposed to contents. \
+						  With no cacheing, the property can be <span class="code">getAndRender: Pages.ContentProviders.getAndRender</span>',
+						params: [
+							{name: 'path', descr: 'the content path'},
+							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true},
+							{name: 'data', descr: 'the data context to be sent to the template render call', optional: true},
+							{name: 'suppressErrors', descr: 'boolean indicating if errors should be suppressed.  If they are suppressed, the impl should trigger the <em>error:template</em> with hash containing <em>path</em>, and <em>error</e> values.', type: 'boolean', optional: true, defaultVal: 'false'}
+						]
+					},
 					get: {
 						descr: 'return the content as identified by the path',
 						params: [
 							{name: 'path', descr: 'the content path'},
-							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true},
-							{name: 'suppressErrors', descr: 'boolean indicating if errors should be suppressed.  If they are suppressed, the impl should trigger the <em>error:template</em> with hash containing <em>path</em>, and <em>error</e> values.', type: 'boolean', optional: true, defaultVal: 'false'}
+							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true}
 						]
 					}
 				}
@@ -35,8 +45,8 @@ modelData.api = {
 			'Pages.ManagedObjectHandler': {
 				defaultImpl: [
 					{descr: 'View Subview handler see {#Pages.View#addView}', defaultImpl: 'Pages.SubViewHandlers.Default'},
-					{descr: 'View Model: see {#Pages.View#addModel}', defaultImpl: 'Pages.ModelHandlers.ViewTemplate'},
-					{descr: 'View Collection: see {#Pages.View#addCollection}', defaultmpl: 'Pages.CollectionHandlers.TemplateBound'}
+					{descr: 'View Model: see {#Pages.View#addModel}', defaultImpl: 'Pages.Handlers.ViewTemplate'},
+					{descr: 'View Collection: see {#Pages.View#addCollection}', defaultmpl: 'Backbone.CollectionHandlers.TemplateBound'}
 				],
 				descr: 'An object responsible for handling events on another object (eg: view, model, collection).  This is how views handle sub-views, collections and models that interact with the UI.',
 				methods: {
@@ -104,7 +114,7 @@ modelData.api = {
 				}
 			},
 
-			'Pages.ModelHandlers.BaseElementHandler': {
+			'Pages.Handlers.BaseElementHandler': {
 				mh: true,
 				descr: 'Abstract method set useful for plugin classes which deal with UI contributions.  These methods assume that the <em>selector</em> property is set in the options',
 				methods: {
@@ -124,7 +134,7 @@ modelData.api = {
 		},
 		
 		'View Models': {
-			'Pages.ModelHandlers.ViewTemplate': {
+			'Pages.Handlers.ViewTemplate': {
 				mh: true,
 				defaultImpl: true,
 				descr: 'Simple model handler just exposes a <em>parentContext</em> method to contribute to a context for a template.  The default implementation of the #{Pages.View#getContext} will execute the parentContext method on all managed objects',
@@ -137,7 +147,7 @@ modelData.api = {
 		},
 		
 		'View Collections': {
-			'Pages.CollectionHandlers.TemplateBound': {
+			'Backbone.CollectionHandlers.TemplateBound': {
 				mh: true,
 				defaultImpl: true,
 
@@ -273,7 +283,7 @@ Pages.Templates.myview = {\
 					},
 					
 					'addCollection': {
-						descr: 'Add a managed collection.  The actual implementation is up to the #{link:Pages.ManagedObjectHandler|handler} but the default impl is #{link:Pages.CollectionHandlers.TemplateBound}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
+						descr: 'Add a managed collection.  The actual implementation is up to the #{link:Pages.ManagedObjectHandler|handler} but the default impl is #{link:Backbone.CollectionHandlers.TemplateBound}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
 						params: {
 							'option 1': [
 								{name: 'collection', desc: 'collection instance', type: '{Backbone.Collection}'},
@@ -295,7 +305,7 @@ Pages.Templates.myview = {\
 					},
 
 					'addModel': {
-						descr: 'Add a managed model.  The actual implementation is up to the #{link:Pages.ManagedObjectHandler|handler} but the default impl is #{link:Pages.ModelHandlers.ViewTemplate}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
+						descr: 'Add a managed model.  The actual implementation is up to the #{link:Pages.ManagedObjectHandler|handler} but the default impl is #{link:Pages.Handlers.ViewTemplate}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
 						params: {
 							'option 1': [
 								{name: 'model', desc: 'model instance', type: '{Backbone.Model}'},
@@ -430,7 +440,7 @@ for (var name in modelData.index) {
 
 /** CLASS DEFINITIONS **/
 var models = {}, collections = {};
-models.Base = Pages.Model.extend({
+models.Base = Backbone.Model.extend({
 	fetch: function(options) {
       options = options ? _.clone(options) : {};
       var model = this;
@@ -438,7 +448,7 @@ models.Base = Pages.Model.extend({
       options.success && options.success(this);
 	}
 });
-collections.Base = Pages.Collection.extend({
+collections.Base = Backbone.Collection.extend({
 	fetch: function(options) {
       options = options ? _.clone(options) : {};
       if (options.parse === undefined) options.parse = true;
@@ -509,3 +519,4 @@ collections.Parameters = collections.Base.extend({
 
 var data = {};
 data.apiSections = new collections.Sections(JSON.parse(JSON.stringify(modelData.api.sections)), {parse: true});
+console.log(data);

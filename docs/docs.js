@@ -13,7 +13,8 @@ Pages.templates = {
 		'parameters-empty': 'there are no parameters'
 	},
 	'api-parameter':
-			'<p class="arguement"><strong>{{name}}</strong><span class="argument-type">({{argumentType}})</span> {{linkScan descr}} </p>',
+			'<p class="arguement"><strong>{{name}}</strong><span class="argument-type">({{type}})</span> {{linkScan descr}} </p>',
+
 	'mini-api-index':
 			'<div class="sections mini"></div>',
 	'mini-api-section':
@@ -148,7 +149,8 @@ views.APIParameter = views.Base.extend({
 	template: miniTemplate,
 
 	init: function() {
-		this.addModel(this.options.parameter);
+		 var param = this.addModel(this.options.parameter);
+		 param.attributes.type = param.attributes.type || 'string';
 	}
 });
 

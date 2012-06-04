@@ -97,7 +97,7 @@ modelData.api = {
 						descr: 'add an object to be managed',
 						params: [
 							{name: 'type', descr: 'arbitrary type identifier (all aliases of objects with the same type must be unique)'},
-							{name: 'options', descr: 'object data <dl> <dt>alias</dt><dd>the object alias (unique by type)</dd> <dt>{key is the first param}</dt><dd>the managed object</dd> <dt>handler</dt><dd>the #{link:Pages.ObjectHandler|object handler}</dd> <dt>selector</dt><dd>the element selector where appropriate</dd> </dl> And any othe properties that are meaningful to the #{link:Pages.ManagedObjectHandler|object handler}.', type:'properties'}
+							{name: 'options', descr: 'object data <dl> <dt>alias</dt><dd>the object alias (unique by type)</dd> <dt>{type key}</dt><dd>the managed object</dd> <dt>handler</dt><dd>the #{link:Pages.ObjectHandler|object handler}</dd> <dt>selector</dt><dd>the element selector where appropriate</dd> </dl> And any othe properties that are meaningful to the #{link:Pages.ManagedObjectHandler|object handler}.', type:'properties'}
 						]
 					},
 					exec: {

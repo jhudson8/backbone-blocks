@@ -688,26 +688,30 @@ _.extend(Pages.ObjectManager.prototype, {
 			type = undefined;
 		}
 
-		function exec(l) {
+		function exec(l, rtn) {
 			_.each(l, function(obj) {
 				var func = obj.handler[method];
 				func && func.apply(obj.handler, args);
 			});
 		}
 
+		var rtn = {};
 		if (!type) {
 			for (var type in this.managedObjects) {
-				exec(this.managedObjects[type]);
+			  var typeRtn = {};
+			  rtn[type] = typeRtn;
+				exec(this.managedObjects[type], typeRtn);
 			}
 		} else {
-			exec(this.getAll(type));
+			exec(this.getAll(type), rtn);
 		}
+		return rtn;
 	},
 
 	destroy: function() {
 		for (var type in this.managedObjects) {
 			_.each(this.managedObjects[type], function(obj) {
-				if (obj.__data.bindings) {
+				if (obj._data.bindings) {
 					_.each(obj._data.bindings, function(binding) {
 						binding.destroy && binding.destroy();
 					});
@@ -794,6 +798,11 @@ function wrapFetchOptions(model, options) {
 	options.error = error;
 	return options;
 }
+
+// setup plugin packages
+Pages.Handler.Collection = {};
+Pages.Handler.Model = {};
+Pages.Handler.View = {};
 
 Pages.Defaults = {
 	objectManagerClass: Pages.ObjectManager,

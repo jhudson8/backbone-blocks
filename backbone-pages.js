@@ -11,6 +11,11 @@ var delegateEventSplitter = /^(\S+)\s*(.*)$/;
  * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
  **************************************************/
 
+function templateLoadPath(path, view, options) {
+	var contentProvider = options && options.provider || Pages.contentProvider;
+	return this.loadContent(contentProvider.get(path, view, options), options);
+}
+
 /**
  * Pages.Template is the package structure for template engine plugins.  The template engine API
  * is as follows:
@@ -22,18 +27,21 @@ Pages.Handler.Template = {
 	 * Simple template plugin using the underscore template function
 	 */
 	Underscore: {
-		load: function(content) {
+		loadContent: function(content) {
 			return function(data) {
 				return _.template(content, data);
 			}
-		}
+		},
+		loadPath: templateLoadPath
 	},
 	Handlebars: {
-  	load: function(content) {
-  		return Handlebars.compile(content);
-  	}
-  }
+		loadContent: function(content) {
+			return Handlebars.compile(content);
+		},
+		loadPath: templateLoadPath
+	}
 };
+
 
 
 /**
@@ -58,8 +66,6 @@ Pages.Handler.Content = {
 	 */
 	HashProvider: function(root) {
 		return {
-		  getAndRender: Pages.Handler.Content.getAndRender,
-		
 			get: function(path, view) {
 				// see if we can get from the view first
 				var rtn = view && view.templates && view.templates[path];
@@ -91,9 +97,6 @@ Pages.Handler.Content = {
 			}
 		};
 	}
-};
-Pages.Handler.Content.getAndRender = function(path, view, data, options) {
-  return (options && options.templateEngine || Pages.Defaults.templateEngine).load(this.get(path, view))(data);
 };
 
 
@@ -137,15 +140,43 @@ Pages.Handler.BaseElementHandler = {
  ****************************************/
 
 /**
- * Simple handler that will only contribute to the context
+ * Simple handler that will only contribute model attributes to the context.
+ * If the default alias is used, the model attributes will be applied directly to the context,
+ * otherwise they will use the alias as the attribute namespace
  */
+Pages.Handler.ModelContextContributor = function() {};
+_.extend(Pages.Handler.ModelContextContributor.prototype, {
+	parentContext: function(context) {
+		var model = this.options[this.options._data.type];
+		if (this.options.alias === Pages.Defaults.modelAlias) {
+			// single model, go straight to attributes
+			_.defaults(context, model.attributes);
+		} else {
+			context[this.alias] = model.attributes;
+		}
+	}
+});
+
+
+/**
+ * Simple handler that will only contribute collection models to the context.  The
+ * alias will be used as the namespace for the models.
+ */
+Pages.Handler.CollectionContextContributor = function() {};
+_.extend(Pages.Handler.CollectionContextContributor.prototype, {
+	parentContext: function(context) {
+		var collection = this.options[this.options._data.type];
+		context[this.options.alias] = collection.models;
+	}
+});
+
 Pages.Handler.ContextContributor = function() {};
 _.extend(Pages.Handler.ContextContributor.prototype, {
 
 	parentContext: function(context) {
 		var modelOrCollection = this.options[this.options._data.type];
 
-		// determind what should be put into the context
+		// determine what should be put into the context
 		if (modelOrCollection instanceof Backbone.Collection) {
 			context[this.options.alias] = modelOrCollection.models;
 		} else {
@@ -159,7 +190,6 @@ _.extend(Pages.Handler.ContextContributor.prototype, {
 		}
 	}
 });
-
 
 /****************************************
  * DEFAULT SUBVIEW HANDLER
@@ -243,7 +273,7 @@ _.extend(Backbone.Model.prototype, {
 	 */
 	isPopulated: function() {
 		if (this._populated) return true;
-		for (var name in attributes) {
+		for (var name in this.attributes) {
 			if (name != 'id') return true;
 		}
 		return false;
@@ -275,8 +305,8 @@ Pages.View = Backbone.View.extend({
 		// cache of view events for auto-binding
 		this._delegatedViewEvents = {};
 
-		this.templateLoader = Pages.Defaults.templateEngine;
-		this.contentProvider = Pages.Defaults.contentProvider;
+		this.templateEngine = Pages.templateEngine;
+		this.contentProvider = Pages.contentProvider;
 		this.objectManager = new Pages.Defaults.objectManagerClass(this);
 
 		if (options && options.model &&  Pages.Defaults.autoAddModel) {
@@ -305,9 +335,7 @@ Pages.View = Backbone.View.extend({
 	 */
 	execTemplate: function(path, context, options) {
 		try {
-		  options = options || {};
-		  options.templateEngine = this.templateLoader;
-		  return this.contentProvider.getAndRender(path, this, context, options);
+			return this.templateEngine.loadPath(path, this, options)(context);
 		} catch (e) {
 			if (!options || !options.suppressError) {
 				throw e;
@@ -337,12 +365,8 @@ Pages.View = Backbone.View.extend({
 	},
 
 	/**
-	 * add a sub view.  this can have 2 different parameter types
-	 * 1) view selector; eg .sub-view', view instance
-	 * 2) named options
-	 *    - view: the view instance
-	 *    - selector: the selector where the view will be appended
-	 *    - alias: an alias for the view (for event binding)
+	 * add a sub view.  Available overloaded parameter types are
+	 * (view[, options]) or (alias, view[, options]) or (options)
 	 * If the sub-view alias is 'foo', the view events could contain, for example, { 'foo:render': 'fooRender' }
 	 */
 	addView: function() {
@@ -350,7 +374,6 @@ Pages.View = Backbone.View.extend({
 		return this.objectManager.add(Pages.Defaults.viewAlias, options);
 	},
 
-	// (view[, options]) or (alias, view[, options]) or (options)
 	viewOptions: function() {
 		return populateOptions ({
 			arguments: arguments,
@@ -364,12 +387,8 @@ Pages.View = Backbone.View.extend({
 	},
 
 	/**
-	 * add a monitored collection.  this can have 2 different parameter types
-	 * 1) collection
-	 * 2) named options
-	 *    - collection: the collection
-	 *    - handler: the collection handler used to represent the collection in the view; see: Pages.CollectionHandlers
-	 *    - alias: the alias used for binding to collection events
+	 * add a monitored collection.  Available overloaded parameter types are
+	 * (collection[, options]) or (alias, collection[, options]) or (options)
 	 * If the collection alias is 'foo', the view events could contain, for example, { 'foo:reset': 'fooReset' }
 	 */
 	addCollection: function() {
@@ -377,7 +396,6 @@ Pages.View = Backbone.View.extend({
 		return this.objectManager.add(Pages.Defaults.collectionAlias, options);
 	},
 
-	// (collection[, options]) or (alias, collection[, options]) or (options)
 	collectionOptions: function() {
 		return populateOptions ({
 			arguments: arguments,
@@ -390,12 +408,16 @@ Pages.View = Backbone.View.extend({
 		});
 	},
 
+	/**
+	 * add a monitored model.  Available overloaded parameter types are
+	 * (model[, options]) or (alias, model[, options]) or (options)
+	 * If the model alias is 'foo', the view events could contain, for example, { 'foo:change': 'fooChange' }
+	 */
 	addModel: function() {
 		var options = this.modelOptions.apply(this, arguments);
 		return this.objectManager.add(Pages.Defaults.modelAlias, options);
 	},
 
-	// (model[, options]) or (alias, model[, options]) or (options)
 	modelOptions: function() {
 		return populateOptions ({
 			arguments: arguments,
@@ -555,13 +577,29 @@ _.extend(Pages.ObjectManager.prototype, {
 		}
 		for (var i=0; i<l.length; i++) {
 			if (l[i].alias === options.alias) {
-				throw new Error('Existing managed ' + type + ' "' + options.alias + '"');
+				// remove the previous
+				l[i].destroy();
+				break;
 			}
 		}
 
 		// initialize options
-		options._data = {type: type};
+		options._data = {type: type, bindings: []};
+		var bindings = options._data.bindings;
 		options.handler.options = options;
+		// if a selector property was provided, auto-set $el on the handler
+		// and update it as the parent renders itself
+		var parent = options.handler.parent = this.parent;
+		var elBind;
+		if (options.selector && parent.$el) {
+			elBind = function() {
+				options.handler.$el = parent.$el.find(options.selector); 
+			}
+			parent.on('rendered', elBind);
+			bindings.push(function() {
+				parent.off('rendered', elBind);
+			});
+		}
 
 		var object = options[type];
 		// initialize and allow auto-binding from the context object to the view
@@ -580,16 +618,8 @@ _.extend(Pages.ObjectManager.prototype, {
 		if (events) {
 			var bindings = [];
 			for (name in events) {
-				var method = events[name];
-				if (method) {
-					if (_.isString(method)) {
-						method = options.handler[method];
-						if (!_.isFunction(method)) {
-							throw new Error('Invalid managed object event "' + method + '"; is not a valid function name');
-						}
-					}
-					bindings.push(this.bindEvent(name, method, object, options) || {});
-				}
+				var method = getMethod(events[name], options.handler);
+				bindings.push(this.bindEvent(name, method, object, options) || {});
 			}
 			options._data.bindings = bindings;
 		}
@@ -603,13 +633,10 @@ _.extend(Pages.ObjectManager.prototype, {
 		var target = object;
 
 		// use the * prefix as a marker to wait for a loaded model/collection
-		var waitForLoad = false;
 		var loadedCallback;
 		var match = event.match(loadedObjectPattern);
 		if (match) {
-			waitForLoad = true;
 			event = match[1];
-			
 			var _bound = bound;
 			bound = function () {
 				if (object.isPopulated()) {
@@ -627,6 +654,7 @@ _.extend(Pages.ObjectManager.prototype, {
 			};
 		}
 
+		// allow events that are split by a space refer to standard DOM event & selector
 		if (this.parent.$el && options.selector) {
 			// check for element binding
 			var parts = event.split(' ');
@@ -689,10 +717,11 @@ _.extend(Pages.ObjectManager.prototype, {
 		}
 
 		function exec(l, rtn) {
-			_.each(l, function(obj) {
+			for (var alias in l) {
+				var obj = l[alias];
 				var func = obj.handler[method];
-				func && func.apply(obj.handler, args);
-			});
+				rtn[alias] = func && func.apply(obj.handler, args);
+			}
 		}
 
 		var rtn = {};
@@ -702,10 +731,11 @@ _.extend(Pages.ObjectManager.prototype, {
 			  rtn[type] = typeRtn;
 				exec(this.managedObjects[type], typeRtn);
 			}
+			return new AggregateResponse(rtn, true);
 		} else {
 			exec(this.getAll(type), rtn);
+			return new AggregateResponse(rtn, false);
 		}
-		return rtn;
 	},
 
 	destroy: function() {
@@ -722,6 +752,60 @@ _.extend(Pages.ObjectManager.prototype, {
 	}
 });
 
+function AggregateResponse(data, typed) {
+	var values = [];
+	var total = 0;
+	var responded = 0;
+	function eval(data) {
+		for (var i in data) {
+			total ++;
+			if (!_.isUndefined(data[i])) {
+				responded ++;
+				values.push(data[i]);
+			}
+		}
+	}
+	if (typed) {
+		for (var i in data) {
+			eval(data[i]);
+		}
+	} else {
+		eval(data);
+	}
+	
+	return {
+		total: total,
+		responded: responded,
+		all: function(val, allowTruthy) {
+			for (var i in values) {
+				if (allowTruthy) {
+					if ((val && !values[i]) || (!val && values[i])) {
+						return false;
+					}
+				} else {
+					if (!(val === values[i])) {
+						return false;
+					}
+				}
+			}
+			return true;
+		},
+		any: function(val, allowTruthy) {
+			for (var i in values) {
+				if (allowTruthy) {
+					if ((val && values[i]) || (!val && !values[i])) {
+						return true;
+					}
+				} else {
+					if (val === values[i]) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+	};
+}
 
 // PRIVATE CLASSES AND METHODS //
 function EventProxy(alias, context) {
@@ -799,17 +883,30 @@ function wrapFetchOptions(model, options) {
 	return options;
 }
 
+function getMethod(methodOrName, parent) {
+	if (methodOrName) {
+		if (_.isString(methodOrName)) {
+			var func = parent[methodOrName];
+			if (!func) throw new Error('Invalid function name "' + methodOrName + '"');
+			return func;
+		} else {
+			return methodOrName;
+		}
+	}
+}
+
 // setup plugin packages
 Pages.Handler.Collection = {};
 Pages.Handler.Model = {};
 Pages.Handler.View = {};
 
+// set the defaults
+Pages.templateEngine = Pages.Handler.Template.Underscore;
+Pages.contentProvider = new Pages.Handler.Content.HashProvider();
 Pages.Defaults = {
 	objectManagerClass: Pages.ObjectManager,
-	templateEngine: Pages.Handler.Template.Underscore,
-	contentProvider: new Pages.Handler.Content.HashProvider(),
-	modelHandlerClass: Pages.Handler.ContextContributor,
-	collectionHandlerClass: Pages.Handler.ContextContributor,
+	modelHandlerClass: Pages.Handler.ModelContextContributor,
+	collectionHandlerClass: Pages.Handler.CollectionContextContributor,
 	viewHandlerClass: Pages.Handler.SimpleSubView,
 	modelAlias: 'model',
 	collectionAlias: 'collection',

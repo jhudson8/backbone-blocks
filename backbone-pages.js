@@ -7,6 +7,9 @@ var Pages = {
 var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
 
+// The self-propagating extend function that Backbone classes use.
+var extend = Backbone.Model.extend;
+
 /**************************************************
  * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
  **************************************************/
@@ -107,22 +110,8 @@ Pages.Handler.Content = {
 /**
  * Base handler that provides utility methods to get selector value and bind events
  */
-Pages.Handler.BaseElementHandler = {
-	getElement: function (selector) {
-		selector = selector || this.options.selector;
-		var el;
-		try {
-			el = this.view.$el.find(selector);
-		} catch (e) {
-			throw new Error('invaild selector "' + selector + '"; ' + e);
-		}
-		if (el.size() > 1) {
-			console.log(el.html());
-			throw new Error('Non-unique "' + selector + '"');
-		}
-		return el;
-	},
-
+Pages.Handler.Base = function() {};
+_.extend(Pages.Handler.Base.prototype, {
 	elBind: function (eventName, selector, fName) {
 		var func = _.isString(fName) ? this[fName] : fName;
 		if (!func) throw new Error ('Invalid function name "' + fName + '"');
@@ -133,7 +122,10 @@ Pages.Handler.BaseElementHandler = {
 			this.view.$el.delegate(selector, eventName, func);
 		}
 	}
-};
+});
+Pages.Handler.Base.extend = extend;
+
+
 
 /****************************************
  * DEFAULT MODEL AND COLLECTION HANDLER
@@ -144,8 +136,7 @@ Pages.Handler.BaseElementHandler = {
  * If the default alias is used, the model attributes will be applied directly to the context,
  * otherwise they will use the alias as the attribute namespace
  */
-Pages.Handler.ModelContextContributor = function() {};
-_.extend(Pages.Handler.ModelContextContributor.prototype, {
+Pages.Handler.ModelContextContributor = Pages.Handler.Base.extend({
 	parentContext: function(context) {
 		var model = this.options[this.options._data.type];
 		if (this.options.alias === Pages.Defaults.modelAlias) {
@@ -162,34 +153,13 @@ _.extend(Pages.Handler.ModelContextContributor.prototype, {
  * Simple handler that will only contribute collection models to the context.  The
  * alias will be used as the namespace for the models.
  */
-Pages.Handler.CollectionContextContributor = function() {};
-_.extend(Pages.Handler.CollectionContextContributor.prototype, {
+Pages.Handler.CollectionContextContributor = Pages.Handler.Base.extend({
 	parentContext: function(context) {
 		var collection = this.options[this.options._data.type];
 		context[this.options.alias] = collection.models;
 	}
 });
 
-Pages.Handler.ContextContributor = function() {};
-_.extend(Pages.Handler.ContextContributor.prototype, {
-
-	parentContext: function(context) {
-		var modelOrCollection = this.options[this.options._data.type];
-
-		// determine what should be put into the context
-		if (modelOrCollection instanceof Backbone.Collection) {
-			context[this.options.alias] = modelOrCollection.models;
-		} else {
-			// assume a Model
-			if (this.options.alias === Pages.Defaults.modelAlias) {
-				// single model, go staight to attributes
-				_.defaults(context, modelOrCollection.attributes);
-			} else {
-				context[this.alias] = modelOrCollection.attributes;
-			}
-		}
-	}
-});
 
 /****************************************
  * DEFAULT SUBVIEW HANDLER
@@ -199,21 +169,18 @@ _.extend(Pages.Handler.ContextContributor.prototype, {
  * Pages.SubViewHandlers is the package structure for sub-view handlers.  There isn't much need for anything other than
  * the default but it allows us to use a managed object to deal with subviews in a standard way.
  */
-Pages.Handler.SimpleSubView = function() {}
-_.extend(Pages.Handler.SimpleSubView.prototype, Pages.Handler.BaseElementHandler, {
+Pages.Handler.SimpleSubView = Pages.Handler.Base.extend({
 	events: {
 		'parent:rendered': 'render'
 	},
 
-	init: function(parentView, subView, options) {
-		this.options = options;
+	init: function(parentView, subView) {
 		this.view = parentView;
 		this.subView = subView;
 	},
 
 	render: function() {
-		var el = this.getElement();
-
+		var el = this.$el;
 		if (el.children().size() == 0) {
 			// we're good here
 		} else if (el.children.size() == 1) {

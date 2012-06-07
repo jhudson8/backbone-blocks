@@ -1,108 +1,98 @@
-var Blocks = {
-	Handler : {}
-};
+var Blocks = {};
 
 (function() {
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
-	// The self-propagating extend function that Backbone classes use.
-	var extend = Backbone.Model.extend;
+	// package and base handler setup
+	var _handler = Blocks.Handler = {};
+	var _template = _handler.Template = {};
+	var _content = _handler.Content = {};
 
+	var _base = _handler.Base = function() {
+	};
+	_base.extend = Backbone.Model.extend;
+
+	
 	/***************************************************************************
 	 * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
 	 **************************************************************************/
 
-	function templateLoadPath(path, view, options) {
-		var contentProvider = options && options.provider
-				|| Blocks.contentProvider;
-		return this.loadContent(contentProvider.get(path, view, options),
-				options);
-	}
-
-	/**
-	 * Blocks.Template is the package structure for template engine plugins. The
-	 * template engine API is as follows: - load: return function which accepts
-	 * context parameter to return template content
-	 */
-	Blocks.Handler.Template = {
-
-		/**
-		 * Simple template plugin using the underscore template function
-		 */
-		Underscore : {
-			loadContent : function(content) {
-				return function(data) {
-					return _.template(content, data);
-				}
-			},
-			loadPath : templateLoadPath
-		},
-		Handlebars : {
-			loadContent : function(content) {
-				return Handlebars.compile(content);
-			},
-			loadPath : templateLoadPath
+	var _templateBase = _handler.TemplateBase = _base.extend({
+		loadPath : function(path, view, options) {
+			var contentProvider = options && options.provider
+					|| Blocks.contentProvider;
+			return this.loadContent(contentProvider.get(path, view, options),
+					options);
 		}
-	};
+	});
 
 	/**
-	 * Blocks.Content is the package structure for template contentent retrieval
-	 * plugins. The content provider API is as follows: - get(path, view
-	 * (optional)) return the content relating to the path - isValid(path)
-	 * return true if the path represents a valid content block
+	 * Simple template plugin using the underscore template function
 	 */
-	Blocks.Handler.Content = {
-
-		/**
-		 * Simple templates that can either be defined on the view within the
-		 * 'templates' property or on Blocks.templates. If in Blocks.templates
-		 * then the view 'package' property will be prefixed to the path.
-		 * Package segments should be separated with '.'. Each package segment
-		 * will map to a sub-property within Blocks.templates. So, a 'foo' path
-		 * with a 'abc.def' package would be set as follows: Blocks.templates = {
-		 * abc: { def: { foo: "This is the foo content" } } }
-		 */
-		HashProvider : function(root) {
-			return {
-				get : function(path, view) {
-					// see if we can get from the view first
-					var rtn = view && view.templates && view.templates[path];
-
-					// if not, pull from the root using the view package if
-					// available
-					if (!rtn) {
-						var parent = root || Blocks.templates;
-						path = ((view && view.package) ? (view.package.replace(
-								'.', '/') + '/') : '')
-								+ path
-						var parts = path.split('/');
-						for ( var i in parts) {
-							if (!parent)
-								break;
-							parent = parent[parts[i]];
-						}
-						rtn = parent;
-					}
-					if (rtn && !_.isString(rtn)) {
-						// allow for the actual path to reference a hash with a
-						// 'template' property. This helps if
-						// collection templates use the view template as the
-						// path prefix
-						rtn = rtn.template;
-					}
-					if (!_.isString(rtn)) {
-						throw new Error('Undefined template "' + path + '"');
-					}
-					return rtn;
-				},
-
-				isValid : function(path, view) {
-					return !!this.get(path, view, true);
-				}
+	_template.Underscore = _templateBase.extend({
+		loadContent : function(content) {
+			return function(data) {
+				return _.template(content, data);
 			};
 		}
-	};
+	});
+
+	/**
+	 * Simple template plugin using the handlebars template engine
+	 */
+	_template.Handlebars = _templateBase.extend({
+		loadContent : function(content) {
+			return Handlebars.compile(content);
+		}
+	});
+
+	/**
+	 * Simple templates that can either be defined on the view within the
+	 * 'templates' property or on Blocks.templates. If in Blocks.templates then
+	 * the view 'package' property will be prefixed to the path. Package
+	 * segments should be separated with '.'. Each package segment will map to a
+	 * sub-property within Blocks.templates. So, a 'foo' path with a 'abc.def'
+	 * package would be set as follows: Blocks.templates = { abc: { def: { foo:
+	 * "This is the foo content" } } }
+	 */
+	_content.HashProvider = _base.extend({
+		get : function(path, view) {
+			// see if we can get from the view first
+			var rtn = view && view.templates && view.templates[path];
+
+			// if not, pull from the root using the view package if
+			// available
+			if (!rtn) {
+				var parent = Blocks.templates;
+				path = ((view && view.package) ? (view.package
+						.replace('.', '/') + '/') : '')
+						+ path;
+				var parts = path.split('/');
+				for ( var i in parts) {
+					if (!parent)
+						break;
+					parent = parent[parts[i]];
+				}
+				rtn = parent;
+			}
+			if (rtn && !_.isString(rtn)) {
+				// allow for the actual path to reference a hash with a
+				// 'template' property. This helps if
+				// collection templates use the view template as the
+				// path prefix
+				rtn = rtn.template;
+			}
+			if (!_.isString(rtn)) {
+				throw new Error('Undefined template "' + path + '"');
+			}
+			return rtn;
+		},
+
+		isValid : function(path, view) {
+			return !!this.get(path, view, true);
+		}
+	});
 
 	/***************************************************************************
 	 * CORE ABSTRACT HANDLERS
@@ -112,9 +102,7 @@ var Blocks = {
 	 * Base handler that provides utility methods to get selector value and bind
 	 * events
 	 */
-	Blocks.Handler.Base = function() {
-	};
-	_.extend(Blocks.Handler.Base.prototype, {
+	_handler.ElBase = _handler.Base.extend({
 		elBind : function(eventName, selector, fName) {
 			var func = _.isString(fName) ? this[fName] : fName;
 			if (!func)
@@ -127,7 +115,6 @@ var Blocks = {
 			}
 		}
 	});
-	Blocks.Handler.Base.extend = extend;
 
 	/***************************************************************************
 	 * DEFAULT MODEL AND COLLECTION HANDLER
@@ -139,7 +126,7 @@ var Blocks = {
 	 * directly to the context, otherwise they will use the alias as the
 	 * attribute namespace
 	 */
-	Blocks.Handler.ModelContextContributor = Blocks.Handler.Base.extend({
+	_handler.ModelContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var model = this.options[this.options._data.type];
 			if (this.options.alias === Blocks.Defaults.modelAlias) {
@@ -155,7 +142,7 @@ var Blocks = {
 	 * Simple handler that will only contribute collection models to the
 	 * context. The alias will be used as the namespace for the models.
 	 */
-	Blocks.Handler.CollectionContextContributor = Blocks.Handler.Base.extend({
+	_handler.CollectionContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var collection = this.options[this.options._data.type];
 			context[this.options.alias] = collection.models;
@@ -171,7 +158,7 @@ var Blocks = {
 	 * There isn't much need for anything other than the default but it allows
 	 * us to use a managed object to deal with subviews in a standard way.
 	 */
-	Blocks.Handler.SimpleSubView = Blocks.Handler.Base.extend({
+	_handler.SimpleSubView = _handler.Base.extend({
 		events : {
 			'parent:rendered' : 'render'
 		},
@@ -345,20 +332,20 @@ var Blocks = {
 					options = options || {};
 					if (!options.alias)
 						options.alias = ('mixin_' + ++this.mixinId); // alias
-																		// would
-																		// only
-																		// be
-																		// set
-																		// if it
-																		// needed
-																		// to be
-																		// removed
-																		// later
+					// would
+					// only
+					// be
+					// set
+					// if it
+					// needed
+					// to be
+					// removed
+					// later
 					options.mixin = this; // 'mixin' prop represent context
-											// object (object that the handler
-											// will get event auto-bind to)
+					// object (object that the handler
+					// will get event auto-bind to)
 					options.handler = obj; // the handler in this case will be
-											// the mixin
+					// the mixin
 					this.objectManager.add('mixin', options);
 					return this;
 				},
@@ -545,7 +532,7 @@ var Blocks = {
 		// WHICH IS NOT MEANT TO BE EXTENDED
 		obj.prototype.$uper = function $uper(name, arguments) {
 			this.constructor.__super__[name].apply(this, arguments);
-		}
+		};
 	});
 
 	/***************************************************************************
@@ -553,7 +540,6 @@ var Blocks = {
 	 **************************************************************************/
 
 	var parentPrefixPattern = /^parent:/;
-	var elPrefixPattern = /^el:/;
 	var loadedObjectPattern = /^\*(.+)/;
 
 	Blocks.ObjectManager = function(parent) {
@@ -615,7 +601,7 @@ var Blocks = {
 			if (options.selector && parent.$el) {
 				elBind = function() {
 					options.handler.$el = parent.$el.find(options.selector);
-				}
+				};
 				parent.on('rendered', elBind);
 				bindings.push(function() {
 					parent.off('rendered', elBind);
@@ -659,7 +645,7 @@ var Blocks = {
 
 			// use the * prefix as a marker to wait for a loaded
 			// model/collection
-			var loadedCallback;
+			var loadedCallback = undefined;
 			var match = event.match(loadedObjectPattern);
 			if (match) {
 				event = match[1];
@@ -696,7 +682,7 @@ var Blocks = {
 						destroy : function() {
 							parent.$el.undelegate(parts[1], parts[0], bound);
 						}
-					}
+					};
 				}
 			}
 
@@ -719,7 +705,7 @@ var Blocks = {
 						object.off('fetched', loadedCallback);
 					}
 				}
-			}
+			};
 		},
 
 		/**
@@ -734,7 +720,7 @@ var Blocks = {
 				off : function() {
 					object.off('all', eventProxy);
 				}
-			}
+			};
 		},
 
 		exec : function(type, method, args) {
@@ -845,7 +831,7 @@ var Blocks = {
 			args[0] = alias + ':all';
 			args.splice(1, 0, event);
 			context.trigger.apply(context, args);
-		}
+		};
 	}
 
 	function getValue(object, prop) {
@@ -907,13 +893,13 @@ var Blocks = {
 		function success() {
 			model._fetching = false;
 			model._populated = true;
-			options.success && options.success.apply(model, arguments);
+			_success && _success.apply(model, arguments);
 			model.trigger('fetched');
 		}
 		var _error = options.error;
 		function error() {
 			model._fetching = false;
-			options.error && options.error.apply(model, arguments);
+			_error && _error.apply(model, arguments);
 		}
 		options.success = success;
 		options.error = error;
@@ -935,24 +921,22 @@ var Blocks = {
 	}
 
 	// setup plugin packages
-	Blocks.Handler.Collection = {};
-	Blocks.Handler.Model = {};
-	Blocks.Handler.View = {};
+	_handler.Collection = {};
+	_handler.Model = {};
+	_handler.View = {};
 
 	// set the defaults
-	Blocks.templateEngine = Blocks.Handler.Template.Underscore;
-	Blocks.contentProvider = new Blocks.Handler.Content.HashProvider();
+	Blocks.templateEngine = new _template.Underscore();
+	Blocks.contentProvider = new _content.HashProvider();
 	Blocks.Defaults = {
 		objectManagerClass : Blocks.ObjectManager,
-		modelHandlerClass : Blocks.Handler.ModelContextContributor,
-		collectionHandlerClass : Blocks.Handler.CollectionContextContributor,
-		viewHandlerClass : Blocks.Handler.SimpleSubView,
+		modelHandlerClass : _handler.ModelContextContributor,
+		collectionHandlerClass : _handler.CollectionContextContributor,
+		viewHandlerClass : _handler.SimpleSubView,
 		modelAlias : 'model',
 		collectionAlias : 'collection',
 		viewAlias : 'view',
-		collectionContainerClass : 'bp_col-container',
-		subviewContainerClass : 'bp_sv-container',
-		modelContainerClass : 'bp_mdl-container',
+		containerCssClass : 'blk-container',
 		selectorGenerator : function(options) {
 			return '.' + options.alias;
 		},
@@ -961,6 +945,6 @@ var Blocks = {
 		bubbleCollectionEvents : false,
 		bubbleModelEvents : false,
 		bubbleViewEvents : false
-	}
+	};
 
 })();

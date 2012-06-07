@@ -6,8 +6,8 @@ var Blocks = {};
 
 	// package and base handler setup
 	var _handler = Blocks.Handler = {};
-	var _template = _handler.Template = {};
-	var _content = _handler.Content = {};
+	var _template = Blocks.Template = {};
+	var _content = Blocks.Content = {};
 
 	var _base = _handler.Base = function() {
 	};
@@ -22,7 +22,7 @@ var Blocks = {};
 		loadPath : function(path, view, options) {
 			var contentProvider = options && options.provider
 					|| Blocks.contentProvider;
-			return this.loadContent(contentProvider.get(path, view, options),
+			return this.loadTemplate(contentProvider.get(path, view, options),
 					options);
 		}
 	});
@@ -31,7 +31,7 @@ var Blocks = {};
 	 * Simple template plugin using the underscore template function
 	 */
 	_template.Underscore = _templateBase.extend({
-		loadContent : function(content) {
+		loadTemplate : function(content) {
 			return function(data) {
 				return _.template(content, data);
 			};
@@ -42,7 +42,7 @@ var Blocks = {};
 	 * Simple template plugin using the handlebars template engine
 	 */
 	_template.Handlebars = _templateBase.extend({
-		loadContent : function(content) {
+		loadTemplate : function(content) {
 			return Handlebars.compile(content);
 		}
 	});
@@ -546,6 +546,7 @@ var Blocks = {};
 		this.parent = parent;
 		this.managedObjects = {};
 	};
+	Blocks.ObjectManager.extend = Backbone.Model.extend;
 	_.extend(Blocks.ObjectManager.prototype, {
 		get : function(type, alias) {
 			var l = this.managedObjects[type];

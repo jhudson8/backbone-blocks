@@ -1,8 +1,8 @@
 module("Model Binding Handler");
 
-Pages.Defaults.modelHandlerClass = Pages.Handler.ModelBinder;
+Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
 
-var View = Pages.View.extend({
+var View = Blocks.View.extend({
 	template: 'foo',
 	templates: {
 		foo: '<form class="model"><input id="t1" type="text" name="txt1"/>\

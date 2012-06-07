@@ -1,12 +1,12 @@
 /**
- * - init (options, view, collection): initialize with options from Pages.View#setCollection call, view instance and collection instance
+ * - init (options, view, collection): initialize with options from Blocks.View#setCollection call, view instance and collection instance
  * - render: render the collection
  * - onAdd: called when a model was added to the collection
  * - onRemove: called when a model was removed from the collection
  * - onReset: called when the collection was reset
  */
-Pages.Handler.Collection.ItemView = function() {};
-_.extend(Pages.Handler.Collection.ItemView.prototype, Pages.Handler.BaseElementHandler, {
+Blocks.Handler.Collection.ItemView = function() {};
+_.extend(Blocks.Handler.Collection.ItemView.prototype, Blocks.Handler.BaseElementHandler, {
 
 	events: {
 		'add': 'onAdd',
@@ -64,7 +64,7 @@ _.extend(Pages.Handler.Collection.ItemView.prototype, Pages.Handler.BaseElementH
 		}
 
 		// what function should we use to get item data
-		var viewFunctions = [Pages.Defaults.collectionAlias + 'Item'];
+		var viewFunctions = [Blocks.Defaults.collectionAlias + 'Item'];
 		if (this.options.alias) viewFunctions.splice(0, 0, this.options.alias + 'Item');
 		var fc = this.getFunctionAndContext(viewFunctions, this.onItem);
 		var data = fc.func.call(fc.context, model, this.options);
@@ -82,7 +82,7 @@ _.extend(Pages.Handler.Collection.ItemView.prototype, Pages.Handler.BaseElementH
 
 		// set the data attribute and append the item element
 		itemEl.attr('data-view', model.id);
-		itemEl.addClass(Pages.Defaults.collectionContainerClass);
+		itemEl.addClass(Blocks.Defaults.collectionContainerClass);
 		this.el.append(itemEl);
 	},
 
@@ -99,7 +99,7 @@ _.extend(Pages.Handler.Collection.ItemView.prototype, Pages.Handler.BaseElementH
 		if (this.collection.size() == 0) {
 			this.render();
 		} else {
-			var items = this.el.find('.' + Pages.Defaults.collectionContainerClass);
+			var items = this.el.find('.' + Blocks.Defaults.collectionContainerClass);
 			for (var i=0; i<items.size(); i++) {
 				if (items.get(i).getAttribute('data-view') === model.id) {
 					$(items.get(i)).remove();

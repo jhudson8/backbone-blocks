@@ -45,7 +45,7 @@ test("exec", function() {
 	}
 	
 	var parent = {};
-	var mgr = new Pages.ObjectManager(parent);
+	var mgr = new Blocks.ObjectManager(parent);
 	mgr.add('foo', {
 		alias: '1',
 		foo: {},
@@ -112,7 +112,7 @@ test("events", function() {
 	var model = new Model();
 	model.mockFetching();
 	
-	var View = Pages.View.extend({
+	var View = Blocks.View.extend({
 		template: 'foo',
 		templates: {
 			foo: 'outer content <button class="btn1">non-handled button</button> <div class="sub-content"><button class="btn2">click me</button></div>'

@@ -3,8 +3,8 @@
  * will go directly against the model and will emit errors on the view.
  */
 
-Pages.Handler.Field = {};
-Pages.Handler.Field.NameFieldMapper = {
+Blocks.Handler.Field = {};
+Blocks.Handler.Field.NameFieldMapper = {
 		getElements: function(key, el) {
 			return el.find('[name="' + key + '"]');
 		},
@@ -13,7 +13,7 @@ Pages.Handler.Field.NameFieldMapper = {
 		}
 }
 
-Pages.Handler.Field.SimpleFieldHandler = {
+Blocks.Handler.Field.SimpleFieldHandler = {
 		
 	setModelValue: function(key, element, model) {
 		var type = element.attr('type');
@@ -87,7 +87,7 @@ Pages.Handler.Field.SimpleFieldHandler = {
 		}
 }
 
-Pages.Handler.ModelBinder = Pages.Handler.Base.extend({
+Blocks.Handler.ModelBinder = Blocks.Handler.Base.extend({
 
 	events: {
 		'*parent:rendered': 'rendered',
@@ -115,11 +115,11 @@ Pages.Handler.ModelBinder = Pages.Handler.Base.extend({
 	},
 
 	fieldHandler: function(key) {
-		return this.fields && this.fields[key] && this.fields[key].handler || Pages.Handler.Field.SimpleFieldHandler;
+		return this.fields && this.fields[key] && this.fields[key].handler || Blocks.Handler.Field.SimpleFieldHandler;
 	},
 
 	fieldMap: function(key) {
-		return this.fields && this.fields[key] && this.fields[key].map || Pages.Handler.Field.NameFieldMapper;
+		return this.fields && this.fields[key] && this.fields[key].map || Blocks.Handler.Field.NameFieldMapper;
 	},
 
 	modelChanged: function(model, options) {

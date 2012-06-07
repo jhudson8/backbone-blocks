@@ -8,12 +8,17 @@ var Blocks = {};
 	var _handler = Blocks.Handler = {};
 	var _template = Blocks.Template = {};
 	var _content = Blocks.Content = {};
+	_handler.Field = {};
 
-	var _base = _handler.Base = function() {
+	var _base = _handler.Base = function(options) {
+		if (this.setOptions) {
+			this.setOptions(options);
+		} else {
+			this.options = options;
+		}
 	};
 	_base.extend = Backbone.Model.extend;
 
-	
 	/***************************************************************************
 	 * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
 	 **************************************************************************/
@@ -32,9 +37,7 @@ var Blocks = {};
 	 */
 	_template.Underscore = _templateBase.extend({
 		loadTemplate : function(content) {
-			return function(data) {
-				return _.template(content, data);
-			};
+			return _.template(content);
 		}
 	});
 
@@ -59,14 +62,25 @@ var Blocks = {};
 	_content.HashProvider = _base.extend({
 		get : function(path, view) {
 			// see if we can get from the view first
-			var rtn = view && view.templates && view.templates[path];
+			var rtn = undefined;
+			if (view && view.templates) {
+				rtn = view.templates[path];
+				var templateName = _defaults.getViewTemplateName(view);
+				if (!rtn && templateName) {
+					// allow the special 'template' name if last part is same as view name
+					if (path === templateName) {
+						rtn = view.templates.template;
+					}
+				}
+			}
 
 			// if not, pull from the root using the view package if
 			// available
 			if (!rtn) {
 				var parent = Blocks.templates;
-				path = ((view && view.package) ? (view.package
-						.replace('.', '/') + '/') : '')
+				var packageName = _defaults.getViewPackage(view);
+				path = (packageName ? (packageName.replace('.', '/') + '/')
+						: '')
 						+ path;
 				var parts = path.split('/');
 				for ( var i in parts) {
@@ -129,7 +143,7 @@ var Blocks = {};
 	_handler.ModelContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var model = this.options[this.options._data.type];
-			if (this.options.alias === Blocks.Defaults.modelAlias) {
+			if (this.options.alias === _defaults.modelAlias) {
 				// single model, go straight to attributes
 				_.defaults(context, model.attributes);
 			} else {
@@ -267,15 +281,13 @@ var Blocks = {};
 
 					this.templateEngine = Blocks.templateEngine;
 					this.contentProvider = Blocks.contentProvider;
-					this.objectManager = new Blocks.Defaults.objectManagerClass(
-							this);
+					this.objectManager = new _defaults.objectManagerClass(this);
 
-					if (options && options.model
-							&& Blocks.Defaults.autoAddModel) {
+					if (options && options.model && _defaults.autoAddModel) {
 						this.addModel(options.model);
 					}
 					if (options && options.collection
-							&& Blocks.Defaults.autoAddCollection) {
+							&& _defaults.autoAddCollection) {
 						this.addCollection(options.collection);
 					}
 
@@ -286,8 +298,7 @@ var Blocks = {};
 				 * Return the template path for this view
 				 */
 				getTemplatePath : function() {
-					return getValue(this, 'template') || getValue(this, 'name')
-							|| 'template';
+					return Blocks.Defaults.getViewTemplateName(this);
 				},
 
 				/**
@@ -358,19 +369,18 @@ var Blocks = {};
 				 */
 				addView : function() {
 					var options = this.viewOptions.apply(this, arguments);
-					return this.objectManager.add(Blocks.Defaults.viewAlias,
-							options);
+					return this.objectManager.add(_defaults.viewAlias, options);
 				},
 
 				viewOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : Blocks.Defaults.viewAlias,
+						type : _defaults.viewAlias,
 						objectClass : Backbone.View,
-						alias : Blocks.Defaults.viewAlias,
-						handlerClass : Blocks.Defaults.viewHandlerClass,
+						alias : _defaults.viewAlias,
+						handlerClass : _defaults.viewHandlerClass,
 						addSelector : true,
-						bubbleUp : Blocks.Defaults.bubbleViewEvents
+						bubbleUp : _defaults.bubbleViewEvents
 					});
 				},
 
@@ -383,19 +393,19 @@ var Blocks = {};
 				 */
 				addCollection : function() {
 					var options = this.collectionOptions.apply(this, arguments);
-					return this.objectManager.add(
-							Blocks.Defaults.collectionAlias, options);
+					return this.objectManager.add(_defaults.collectionAlias,
+							options);
 				},
 
 				collectionOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : Blocks.Defaults.collectionAlias,
+						type : _defaults.collectionAlias,
 						objectClass : Backbone.Collection,
-						alias : Blocks.Defaults.collectionAlias,
-						handlerClass : Blocks.Defaults.collectionHandlerClass,
+						alias : _defaults.collectionAlias,
+						handlerClass : _defaults.collectionHandlerClass,
 						addSelector : true,
-						bubbleUp : Blocks.Defaults.bubbleCollectionEvents
+						bubbleUp : _defaults.bubbleCollectionEvents
 					});
 				},
 
@@ -407,17 +417,17 @@ var Blocks = {};
 				 */
 				addModel : function() {
 					var options = this.modelOptions.apply(this, arguments);
-					return this.objectManager.add(Blocks.Defaults.modelAlias,
-							options);
+					return this.objectManager
+							.add(_defaults.modelAlias, options);
 				},
 
 				modelOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : Blocks.Defaults.modelAlias,
+						type : _defaults.modelAlias,
 						objectClass : Backbone.Model,
-						alias : Blocks.Defaults.modelAlias,
-						handlerClass : Blocks.Defaults.modelHandlerClass,
+						alias : _defaults.modelAlias,
+						handlerClass : _defaults.modelHandlerClass,
 						addSelector : true,
 						bubbleUp : this.bubbleUpEvents
 					});
@@ -881,7 +891,7 @@ var Blocks = {};
 		if (!rtn.alias)
 			rtn.alias = data.alias;
 		if (data.addSelector && !rtn.selector)
-			rtn.selector = Blocks.Defaults.selectorGenerator(rtn);
+			rtn.selector = _defaults.selectorGenerator(rtn);
 		if (_.isUndefined(rtn.bubbleUp))
 			rtn.bubbleUp = data.bubbleUp;
 		return rtn;
@@ -929,7 +939,7 @@ var Blocks = {};
 	// set the defaults
 	Blocks.templateEngine = new _template.Underscore();
 	Blocks.contentProvider = new _content.HashProvider();
-	Blocks.Defaults = {
+	var _defaults = Blocks.Defaults = {
 		objectManagerClass : Blocks.ObjectManager,
 		modelHandlerClass : _handler.ModelContextContributor,
 		collectionHandlerClass : _handler.CollectionContextContributor,
@@ -945,7 +955,13 @@ var Blocks = {};
 		autoAddCollection : true,
 		bubbleCollectionEvents : false,
 		bubbleModelEvents : false,
-		bubbleViewEvents : false
+		bubbleViewEvents : false,
+		getViewPackage : function(view) {
+			return (view && view.viewPackage);
+		},
+		getViewTemplateName : function(view) {
+			return (view && (getValue(view, 'template') || view.viewName));
+		}
 	};
 
 })();

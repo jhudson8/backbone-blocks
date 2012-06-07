@@ -1,11 +1,13 @@
 module("Model Binding Handler");
 
+Blocks.templateEngine = new Blocks.Template.Handlebars();
 Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
 
 var View = Blocks.View.extend({
 	template: 'foo',
 	templates: {
-		foo: '<form class="model"><input id="t1" type="text" name="txt1"/>\
+		foo: '<span id="l0">{{testLabel}}</span>\
+			<form class="model"><input id="t1" type="text" name="txt1"/>\
 			<input id="t2" type="checkbox" name="bool1"/>\
 			<input id="t3" type="checkbox" name="bool2"/>\
 			<input id="t4" type="radio" name="bool3" value="true"/>\
@@ -24,6 +26,7 @@ var View = Blocks.View.extend({
 
 test("Render init", function() {
 	var model = new Model({
+		testLabel: 'test label',
 		txt1: 'foo',
 		bool1: true,
 		bool2: false,
@@ -35,6 +38,7 @@ test("Render init", function() {
 	});
 	var view = new View({model: model});
 	view.render();
+	equal(view.$el.find('#l0').html(), 'test label', "model in template context rendering");
 	equal(view.$el.find('#t1').val(), 'foo', "standard text field");
 	equal(view.$el.find('#t2').attr('checked'), 'checked', "checked (true)");
 	equal(view.$el.find('#t3').attr('checked'), undefined, "checked (false)");

@@ -4,7 +4,6 @@
  * will emit errors on the view.
  */
 
-Blocks.Handler.Field = {};
 Blocks.Handler.Field.NameFieldMapper = {
 	getElements : function(key, el) {
 		return el.find('[name="' + key + '"]');
@@ -89,7 +88,7 @@ Blocks.Handler.Field.SimpleFieldHandler = {
 	}
 };
 
-Blocks.Handler.ModelBinder = Blocks.Handler.Base.extend({
+Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 
 	events : {
 		'*parent:rendered' : 'rendered',

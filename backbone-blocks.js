@@ -1,13 +1,12 @@
-var Blocks = {};
-
-(function() {
+(function(env) {
+	var root = env.Blocks = {};
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
 	// package and base handler setup
-	var _handler = Blocks.Handler = {};
-	var _template = Blocks.Template = {};
-	var _content = Blocks.Content = {};
+	var _handler = root.Handler = {};
+	var _template = root.Template = {};
+	var _content = root.Content = {};
 	_handler.Field = {};
 
 	var _base = _handler.Base = function(options) {
@@ -26,7 +25,7 @@ var Blocks = {};
 	var _templateBase = _handler.TemplateBase = _base.extend({
 		loadPath : function(path, view, options) {
 			var contentProvider = options && options.provider
-					|| Blocks.contentProvider;
+					|| root.contentProvider;
 			return this.loadTemplate(contentProvider.get(path, view, options),
 					options);
 		}
@@ -94,21 +93,21 @@ var Blocks = {};
 				rtn = checkPaths(view.templates);
 			}
 
-			if (!rtn && Blocks.templates) {
+			if (!rtn && root.templates) {
 				var packageParts = (view && view.viewPackage) ? view.viewPackage.split('.') : undefined;
 				if (packageParts) {
-					var root = navigate(Blocks.templates, packageParts);
+					var _root = navigate(root.templates, packageParts);
 					if (view) {
 						if (view && view.viewName) {
-							root = root[view.viewName];
+							_root = _root[view.viewName];
 						}
-						if (!path && _.isString(root)) {
-							return root;
+						if (!path && _.isString(_root)) {
+							return _root;
 						}
 					}
-					rtn = checkPaths(root || Blocks.templates);
+					rtn = checkPaths(_root || root.templates);
 				} else {
-					rtn = checkPaths(root || Blocks.templates);
+					rtn = checkPaths(_root || root.templates);
 				}
 			}
 			
@@ -158,7 +157,7 @@ var Blocks = {};
 	_handler.ModelContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var model = this.options[this.options._data.type];
-			if (this.options.alias === Blocks.Defaults.modelAlias) {
+			if (this.options.alias === root.Defaults.modelAlias) {
 				// single model, go straight to attributes
 				_.defaults(context, model.attributes);
 			} else {
@@ -281,7 +280,7 @@ var Blocks = {};
 	 * serialization, sub views, multiple collection handling, additional event
 	 * delegation, etc...
 	 */
-	Blocks.View = Backbone.View
+	root.View = Backbone.View
 			.extend({
 
 				/**
@@ -294,17 +293,17 @@ var Blocks = {};
 					// cache of view events for auto-binding
 					this._delegatedViewEvents = {};
 
-					this.templateEngine = Blocks.templateEngine;
-					this.contentProvider = Blocks.contentProvider;
-					this.objectManager = new Blocks.Defaults.objectManagerClass(
+					this.templateEngine = root.templateEngine;
+					this.contentProvider = root.contentProvider;
+					this.objectManager = new root.Defaults.objectManagerClass(
 							this);
 
 					if (options && options.model
-							&& Blocks.Defaults.autoAddModel) {
+							&& root.Defaults.autoAddModel) {
 						this.addModel(options.model);
 					}
 					if (options && options.collection
-							&& Blocks.Defaults.autoAddCollection) {
+							&& root.Defaults.autoAddCollection) {
 						this.addCollection(options.collection);
 					}
 
@@ -371,19 +370,19 @@ var Blocks = {};
 				 */
 				addView : function() {
 					var options = this.viewOptions.apply(this, arguments);
-					return this.objectManager.add(Blocks.Defaults.viewAlias,
+					return this.objectManager.add(root.Defaults.viewAlias,
 							options);
 				},
 
 				viewOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : Blocks.Defaults.viewAlias,
+						type : root.Defaults.viewAlias,
 						objectClass : Backbone.View,
-						alias : Blocks.Defaults.viewAlias,
-						handlerClass : Blocks.Defaults.viewHandlerClass,
+						alias : root.Defaults.viewAlias,
+						handlerClass : root.Defaults.viewHandlerClass,
 						addSelector : true,
-						bubbleUp : Blocks.Defaults.bubbleViewEvents
+						bubbleUp : root.Defaults.bubbleViewEvents
 					});
 				},
 
@@ -555,11 +554,11 @@ var Blocks = {};
 	var parentPrefixPattern = /^parent:/;
 	var loadedObjectPattern = /^\*(.+)/;
 
-	Blocks.ObjectManager = function(parent) {
+	root.ObjectManager = function(parent) {
 		this.parent = parent;
 		this.managedObjects = {};
 	};
-	Blocks.ObjectManager.extend = Backbone.Model.extend;
+	root.ObjectManager.extend = Backbone.Model.extend;
 	_.extend(Blocks.ObjectManager.prototype, {
 		get : function(type, alias) {
 			var l = this.managedObjects[type];
@@ -895,7 +894,7 @@ var Blocks = {};
 		if (!rtn.alias)
 			rtn.alias = data.alias;
 		if (data.addSelector && !rtn.selector)
-			rtn.selector = Blocks.Defaults.selectorGenerator(rtn);
+			rtn.selector = root.Defaults.selectorGenerator(rtn);
 		if (_.isUndefined(rtn.bubbleUp))
 			rtn.bubbleUp = data.bubbleUp;
 		return rtn;
@@ -940,10 +939,10 @@ var Blocks = {};
 	_handler.Model = {};
 	_handler.View = {};
 
-	Blocks.resetDefaults = function() {
-		Blocks.templateEngine = new _template.Underscore();
-		Blocks.contentProvider = new _content.HashProvider();
-		return Blocks.Defaults = {
+	root.resetDefaults = function() {
+		root.templateEngine = new _template.Underscore();
+		root.contentProvider = new _content.HashProvider();
+		return root.Defaults = {
 			objectManagerClass : Blocks.ObjectManager,
 			modelHandlerClass : _handler.ModelContextContributor,
 			collectionHandlerClass : _handler.CollectionContextContributor,
@@ -959,15 +958,9 @@ var Blocks = {};
 			autoAddCollection : true,
 			bubbleCollectionEvents : false,
 			bubbleModelEvents : false,
-			bubbleViewEvents : false,
-			getViewPackage : function(view) {
-				return (view && view.viewPackage);
-			},
-			getViewTemplateName : function(view) {
-				return (view && (getValue(view, 'template') || view.viewName || 'template'));
-			}
+			bubbleViewEvents : false
 		};
 	};
-	Blocks.resetDefaults();
+	root.resetDefaults();
 
-})();
+})(this);

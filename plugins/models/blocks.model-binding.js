@@ -4,35 +4,29 @@
  * will emit errors on the view.
  */
 
-Blocks.Handler.Field.NameFieldMapper = {
-	getElements : function(key, el) {
-		return el.find('[name="' + key + '"]');
-	},
-	getFieldKey : function(element) {
-		return element.attr('name');
-	}
+Blocks.Handler.Field.NamingStragety = {
+		getFieldKey: function(element) {
+			return element.attr('name');
+		},
+		getElement : function(key, el) {
+			return el.find('[name="' + key + '"]');
+		},
 };
 
 Blocks.Handler.Field.SimpleFieldHandler = {
-
-	setModelValue : function(key, element, model) {
+	serialize : function(key, element, attr) {
 		var type = element.attr('type');
 		var val = element.val();
-		var attr = {};
 		if (type === 'checkbox') {
 			attr[key] = !!element.attr('checked');
-			return model.set(attr);
 		} else if (type === 'radio' && (val === 'true' || val === 'false')) {
 			if (val === 'true') {
 				attr[key] = true;
-				return model.set(attr);
 			} else {
 				attr[key] = false;
-				return model.set(attr);
 			}
 		} else {
 			attr[key] = val;
-			return model.set(attr);
 		}
 	},
 
@@ -113,18 +107,12 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 
 	updateFieldValue : function(key, value) {
 		this.fieldHandler(key).setElementValue(key, value,
-				this.fieldMap(key).getElements(key, this.$el));
+				this.getNamingStrategy().getElement(key, this.$el));
 	},
 
 	fieldHandler : function(key) {
 		return this.fields && this.fields[key] && this.fields[key].handler
 				|| Blocks.Handler.Field.SimpleFieldHandler;
-	},
-
-	fieldMap : function(keyOrElement) {
-		var key = _.isString(keyOrElement) || keyOrElement.attr('name');
-		return this.fields && this.fields[keyOrElement] && this.fields[keyOrElement].map
-				|| Blocks.Handler.Field.NameFieldMapper;
 	},
 
 	modelChanged : function(model, options) {
@@ -135,8 +123,39 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 
 	inputChanged : function(event) {
 		var element = $(event.target);
-		var key = this.fieldMap(element).getFieldKey(element);
-		this.fieldHandler(key).setModelValue(key, element, this.model);
+		var key = this.getNamingStrategy().getFieldKey(element, this.model);
+		if (key) {
+			var attributes = {};
+			this.fieldHandler(key).serialize(key, element, attributes);
+			if (this.validate(key)) {
+				var rtn = this.model.set(attributes, {error: _.bind(function(model, errors) {
+					this.parent.trigger('fieldError', errors, element, this.parent);
+					Blocks.page && Blocks.page.trigger('fieldError', errors, element, this.parent);
+				}, this)});
+				if (rtn) {
+					this.parent.trigger('fieldSuccess',  element, this.parent);
+					Blocks.page && Blocks.page.trigger('fieldSuccess', element, this.parent);
+				}
+			} else {
+				this.model.set(attributes, {validate: false});
+			}
+		}
+	},
+
+	getNamingStrategy : function() {
+		return this.options.namingStrategy || Blocks.Handler.Field.NamingStragety;
+	},
+
+	validate: function(key) {
+		if (this.fields) {
+			for (var i in this.fields) {
+				if (fields[i].key === key && !_.isUndefined(fields[i].validate)) {
+					return fields[i].validate;
+				}
+			}
+		}
+		return true;
+				
 	},
 
 	destroy : function() {

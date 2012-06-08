@@ -159,4 +159,36 @@
 		equal(attr.sel6, 'a');
 		equal(attr.ta7, 'foo');
 	});
+
+	test("Auto field validation using model.validate", function() {
+		Blocks.templateEngine = new Blocks.Template.Handlebars();
+		Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
+		
+		var ValidModel = MockModel.extend({
+			validate: function(attributes) {
+				if (attributes.txt1 && attributes.txt1.length < 4) {
+					return {fieldKey: 'txt1', message: 'Invalid length'};
+				}
+			}
+		});
+
+		var model = new ValidModel({
+			txt1 : 'food'
+		});
+		var view = new View({
+			model : model
+		});
+		var validationError;
+		view.bind('fieldError', function(error) {
+			validationError = error;
+		});
+		view.bind('fieldSuccess', function() {
+			validationError = false;
+		});
+		view.render();
+		view.$el.find('#t1').val('bar').change();
+		equal(validationError.message, 'Invalid length');
+		view.$el.find('#t1').val('food').change();
+		equal(validationError, false);
+	});
 })();

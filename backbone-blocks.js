@@ -3,6 +3,8 @@
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 
+	var $window = $(window);
+
 	// package and base handler setup
 	var _handler = root.Handler = {};
 	var _template = root.Template = {};
@@ -18,16 +20,14 @@
 	};
 	_base.extend = Backbone.Model.extend;
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
-	 **************************************************************************/
+	 ****************************************************************************/
 
 	var _templateBase = _handler.TemplateBase = _base.extend({
 		loadPath : function(path, view, options) {
-			var contentProvider = options && options.provider
-					|| root.contentProvider;
-			return this.loadTemplate(contentProvider.get(path, view, options),
-					options);
+			var contentProvider = options && options.provider || root.contentProvider;
+			return this.loadTemplate(contentProvider.get(path, view, options), options);
 		}
 	});
 
@@ -52,8 +52,8 @@
 	/**
 	 * Simple templates that can either be defined on the view within the
 	 * 'templates' property or on Blocks.templates. If in Blocks.templates then
-	 * the view 'package' property will be prefixed to the path. Package
-	 * segments should be separated with '.'. Each package segment will map to a
+	 * the view 'package' property will be prefixed to the path. Package segments
+	 * should be separated with '.'. Each package segment will map to a
 	 * sub-property within Blocks.templates. So, a 'foo' path with a 'abc.def'
 	 * package would be set as follows: Blocks.templates = { abc: { def: { foo:
 	 * "This is the foo content" } } }
@@ -63,8 +63,9 @@
 			var pathParts = path ? path.split('/') : undefined;
 			function navigate(obj, parts) {
 				var parent = obj;
-				for (var i=0; i<parts.length; i++) {
-					if (!parent) break;
+				for ( var i = 0; i < parts.length; i++) {
+					if (!parent)
+						break;
 					parent = parent[parts[i]];
 				}
 				return parent;
@@ -83,7 +84,8 @@
 						return strVal(obj, view.viewName) || strVal(obj, 'template');
 					} else {
 						var parent = navigate(obj, pathParts);
-						if (_.isString(parent)) return parent;
+						if (_.isString(parent))
+							return parent;
 					}
 				}
 			}
@@ -110,7 +112,7 @@
 					rtn = checkPaths(_root || root.templates);
 				}
 			}
-			
+
 			if (!rtn || !_.isString(rtn)) {
 				throw new Error('Undefined template "' + path + '"');
 			}
@@ -122,9 +124,9 @@
 		}
 	});
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * CORE ABSTRACT HANDLERS
-	 **************************************************************************/
+	 ****************************************************************************/
 
 	/**
 	 * Base handler that provides utility methods to get selector value and bind
@@ -144,15 +146,15 @@
 		}
 	});
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * DEFAULT MODEL AND COLLECTION HANDLER
-	 **************************************************************************/
+	 ****************************************************************************/
 
 	/**
 	 * Simple handler that will only contribute model attributes to the context.
-	 * If the default alias is used, the model attributes will be applied
-	 * directly to the context, otherwise they will use the alias as the
-	 * attribute namespace
+	 * If the default alias is used, the model attributes will be applied directly
+	 * to the context, otherwise they will use the alias as the attribute
+	 * namespace
 	 */
 	_handler.ModelContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
@@ -167,8 +169,8 @@
 	});
 
 	/**
-	 * Simple handler that will only contribute collection models to the
-	 * context. The alias will be used as the namespace for the models.
+	 * Simple handler that will only contribute collection models to the context.
+	 * The alias will be used as the namespace for the models.
 	 */
 	_handler.CollectionContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
@@ -177,14 +179,14 @@
 		}
 	});
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * DEFAULT SUBVIEW HANDLER
-	 **************************************************************************/
+	 ****************************************************************************/
 
 	/**
 	 * Blocks.SubViewHandlers is the package structure for sub-view handlers.
-	 * There isn't much need for anything other than the default but it allows
-	 * us to use a managed object to deal with subviews in a standard way.
+	 * There isn't much need for anything other than the default but it allows us
+	 * to use a managed object to deal with subviews in a standard way.
 	 */
 	_handler.SimpleSubView = _handler.Base.extend({
 		events : {
@@ -210,14 +212,18 @@
 			el.append(this.subView.el);
 		},
 
+		getObjectManagers : function() {
+			return [ this.subView.getObjectManager() ];
+		},
+
 		destroy : function() {
 			this.subView.destroy();
 		}
 	});
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * MODEL AND COLLECTION
-	 **************************************************************************/
+	 ****************************************************************************/
 
 	var _collectionFetch = Backbone.Collection.prototype.fetch;
 	_.extend(Backbone.Collection.prototype, {
@@ -271,272 +277,283 @@
 		}
 	});
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * VIEW
-	 **************************************************************************/
+	 ****************************************************************************/
 
 	/**
 	 * Backbone view with enhanced functionality. Template rendering, form
 	 * serialization, sub views, multiple collection handling, additional event
 	 * delegation, etc...
 	 */
-	root.View = Backbone.View
-			.extend({
+	root.View = Backbone.View.extend({
 
-				/**
-				 * You can bind to event 'initialized' to execute
-				 * post-initialization code
-				 * 
-				 * @trigger 'initialized'
-				 */
-				initialize : function(options) {
-					// cache of view events for auto-binding
-					this._delegatedViewEvents = {};
+		/**
+		 * You can bind to event 'initialized' to execute post-initialization code
+		 * 
+		 * @trigger 'initialized'
+		 */
+		initialize : function(options) {
+			this._bindings = [];
 
-					this.templateEngine = root.templateEngine;
-					this.contentProvider = root.contentProvider;
-					this.objectManager = new root.Defaults.objectManagerClass(
-							this);
+			this.templateEngine = root.templateEngine;
+			this.contentProvider = root.contentProvider;
+			this.objectManager = new root.Defaults.objectManagerClass(this);
 
-					if (options && options.model
-							&& root.Defaults.autoAddModel) {
-						this.addModel(options.model);
-					}
-					if (options && options.collection
-							&& root.Defaults.autoAddCollection) {
-						this.addCollection(options.collection);
-					}
+			if (options && options.model && root.Defaults.autoAddModel) {
+				this.addModel(options.model);
+			}
+			if (options && options.collection && root.Defaults.autoAddCollection) {
+				this.addCollection(options.collection);
+			}
 
-					this.init && this.init(this.options);
-				},
+			this.init && this.init(this.options);
+		},
 
-				/**
-				 * return template contents using the template & content plugins
-				 * 
-				 * @param path
-				 *            the template path
-				 * @param context
-				 *            the context data
-				 * @param options
-				 *            meaningful for the template plugin or use
-				 *            'suppressError' to suppress any errors
-				 * @trigger 'template:error' if errors were suppressed and an
-				 *          error occured
-				 */
-				execTemplate : function(path, context, options) {
-					try {
-						return this.templateEngine
-								.loadPath(path, this, options)(context);
-					} catch (e) {
-						if (!options || !options.suppressError) {
-							throw e;
-						} else {
-							this.trigger('template:error', path, e);
-						}
-					}
-				},
+		/**
+		 * return template contents using the template & content plugins
+		 * 
+		 * @param path
+		 *          the template path
+		 * @param context
+		 *          the context data
+		 * @param options
+		 *          meaningful for the template plugin or use 'suppressError' to
+		 *          suppress any errors
+		 * @trigger 'template:error' if errors were suppressed and an error occured
+		 */
+		execTemplate : function(path, context, options) {
+			try {
+				return this.templateEngine.loadPath(path, this, options)(context);
+			} catch (e) {
+				if (!options || !options.suppressError) {
+					throw e;
+				} else {
+					this.trigger('template:error', path, e);
+				}
+			}
+		},
 
-				/**
-				 * return the data context for template processing
-				 */
-				getContext : function() {
-					var context = {};
-					this.objectManager.exec(undefined, 'parentContext',
-							[ context ]);
-					return _.defaults(context, this);
-				},
+		/**
+		 * return the data context for template processing
+		 */
+		getContext : function() {
+			var context = {};
+			this.objectManager.exec(undefined, 'parentContext', [ context ]);
+			return _.defaults(context, this);
+		},
 
-				mixin : function(obj, options) {
-					if (!this.mixinId)
-						this.mixinId = 0;
-					options = options || {};
-					if (!options.alias)
-						options.alias = ('mixin_' + ++this.mixinId); // alias
-					// would only be set if it needed to be removed later
-					options.mixin = this; // 'mixin' prop represent context
-					// object (object that the handler
-					// will get event auto-bind to)
-					options.handler = obj; // the handler in this case will be
-					// the mixin
-					this.objectManager.add('mixin', options);
-					return this;
-				},
+		mixin : function(obj, options) {
+			if (!this.mixinId)
+				this.mixinId = 0;
+			options = options || {};
+			if (!options.alias)
+				options.alias = ('mixin_' + ++this.mixinId); // alias
+			// would only be set if it needed to be removed later
+			options.mixin = this; // 'mixin' prop represent context
+			// object (object that the handler
+			// will get event auto-bind to)
+			options.handler = obj; // the handler in this case will be
+			// the mixin
+			this.objectManager.add('mixin', options);
+			return this;
+		},
 
-				/**
-				 * add a sub view. Available overloaded parameter types are
-				 * (view[, options]) or (alias, view[, options]) or (options) If
-				 * the sub-view alias is 'foo', the view events could contain,
-				 * for example, { 'foo:render': 'fooRender' }
-				 */
-				addView : function() {
-					var options = this.viewOptions.apply(this, arguments);
-					return this.objectManager.add(root.Defaults.viewAlias,
-							options);
-				},
+		/**
+		 * add a sub view. Available overloaded parameter types are (view[,
+		 * options]) or (alias, view[, options]) or (options) If the sub-view alias
+		 * is 'foo', the view events could contain, for example, { 'foo:render':
+		 * 'fooRender' }
+		 */
+		addView : function() {
+			var options = this.viewOptions.apply(this, arguments);
+			return this.objectManager.add(root.Defaults.viewAlias, options);
+		},
 
-				viewOptions : function() {
-					return populateOptions({
-						arguments : arguments,
-						type : root.Defaults.viewAlias,
-						objectClass : Backbone.View,
-						alias : root.Defaults.viewAlias,
-						handlerClass : root.Defaults.viewHandlerClass,
-						addSelector : true,
-						bubbleUp : root.Defaults.bubbleViewEvents
-					});
-				},
+		viewOptions : function() {
+			return populateOptions({
+				arguments : arguments,
+				type : root.Defaults.viewAlias,
+				objectClass : Backbone.View,
+				alias : root.Defaults.viewAlias,
+				handlerClass : root.Defaults.viewHandlerClass,
+				addSelector : true,
+				bubbleUp : root.Defaults.bubbleViewEvents
+			});
+		},
 
-				/**
-				 * add a monitored collection. Available overloaded parameter
-				 * types are (collection[, options]) or (alias, collection[,
-				 * options]) or (options) If the collection alias is 'foo', the
-				 * view events could contain, for example, { 'foo:reset':
-				 * 'fooReset' }
-				 */
-				addCollection : function() {
-					var options = this.collectionOptions.apply(this, arguments);
-					return this.objectManager.add(
-							Blocks.Defaults.collectionAlias, options);
-				},
+		/**
+		 * add a monitored collection. Available overloaded parameter types are
+		 * (collection[, options]) or (alias, collection[, options]) or (options) If
+		 * the collection alias is 'foo', the view events could contain, for
+		 * example, { 'foo:reset': 'fooReset' }
+		 */
+		addCollection : function() {
+			var options = this.collectionOptions.apply(this, arguments);
+			return this.objectManager.add(Blocks.Defaults.collectionAlias, options);
+		},
 
-				collectionOptions : function() {
-					return populateOptions({
-						arguments : arguments,
-						type : Blocks.Defaults.collectionAlias,
-						objectClass : Backbone.Collection,
-						alias : Blocks.Defaults.collectionAlias,
-						handlerClass : Blocks.Defaults.collectionHandlerClass,
-						addSelector : true,
-						bubbleUp : Blocks.Defaults.bubbleCollectionEvents
-					});
-				},
+		collectionOptions : function() {
+			return populateOptions({
+				arguments : arguments,
+				type : Blocks.Defaults.collectionAlias,
+				objectClass : Backbone.Collection,
+				alias : Blocks.Defaults.collectionAlias,
+				handlerClass : Blocks.Defaults.collectionHandlerClass,
+				addSelector : true,
+				bubbleUp : Blocks.Defaults.bubbleCollectionEvents
+			});
+		},
 
-				/**
-				 * add a monitored model. Available overloaded parameter types
-				 * are (model[, options]) or (alias, model[, options]) or
-				 * (options) If the model alias is 'foo', the view events could
-				 * contain, for example, { 'foo:change': 'fooChange' }
-				 */
-				addModel : function() {
-					var options = this.modelOptions.apply(this, arguments);
-					return this.objectManager.add(Blocks.Defaults.modelAlias,
-							options);
-				},
+		/**
+		 * add a monitored model. Available overloaded parameter types are (model[,
+		 * options]) or (alias, model[, options]) or (options) If the model alias is
+		 * 'foo', the view events could contain, for example, { 'foo:change':
+		 * 'fooChange' }
+		 */
+		addModel : function() {
+			var options = this.modelOptions.apply(this, arguments);
+			return this.objectManager.add(Blocks.Defaults.modelAlias, options);
+		},
 
-				modelOptions : function() {
-					return populateOptions({
-						arguments : arguments,
-						type : Blocks.Defaults.modelAlias,
-						objectClass : Backbone.Model,
-						alias : Blocks.Defaults.modelAlias,
-						handlerClass : Blocks.Defaults.modelHandlerClass,
-						addSelector : true,
-						bubbleUp : this.bubbleUpEvents
-					});
-				},
+		modelOptions : function() {
+			return populateOptions({
+				arguments : arguments,
+				type : Blocks.Defaults.modelAlias,
+				objectClass : Backbone.Model,
+				alias : Blocks.Defaults.modelAlias,
+				handlerClass : Blocks.Defaults.modelHandlerClass,
+				addSelector : true,
+				bubbleUp : this.bubbleUpEvents
+			});
+		},
 
-				/**
-				 * Get template content using property 'template' or 'name' and
-				 * render it using this.getContext as data context
-				 * 
-				 * @trigger 'render:start', 'render:content', 'render:subviews',
-				 *          'render:collections', 'render:end'
-				 */
-				render : function() {
-					this.trigger('rendering');
-					var content = this.execTemplate(undefined, this
-							.getContext());
-					this.$el.html(content);
-					this.trigger('rendered');
-					return this;
-				},
+		/**
+		 * Get template content using property 'template' or 'name' and render it
+		 * using this.getContext as data context
+		 * 
+		 * @trigger 'render:start', 'render:content', 'render:subviews',
+		 *          'render:collections', 'render:end'
+		 */
+		render : function() {
+			this.trigger('rendering');
+			var content = this.execTemplate(undefined, this.getContext());
+			this.$el.html(content);
+			this.trigger('rendered');
+			return this;
+		},
 
-				/**
-				 * destroy all sub-views and unbind all custom bindings
-				 */
-				destroy : function() {
-					this.trigger('destroying');
-					this.undelegateEvents(true);
-					this.objectManager.destroy();
-					delete this.objectManager;
-					delete this._delegatedViewEvents;
-					this.trigger('destroyed');
-					return this;
-				},
+		/**
+		 * destroy all sub-views and unbind all custom bindings
+		 */
+		destroy : function() {
+			this.trigger('destroying');
+			this.undelegateEvents();
+			this.objectManager.destroy();
+			delete this.objectManager;
+			this.trigger('destroyed');
+			return this;
+		},
 
-				/***************************************************************
-				 * EVENTS
-				 **************************************************************/
+		/***************************************************************************
+		 * EVENTS
+		 **************************************************************************/
 
-				/**
-				 * Provide additional event delegations. Events without a space
-				 * will be considered as binding to events that are triggered
-				 * from this view. Hash expanded events are allowed. the
-				 * following are equivalent: events { 'foo:bar': 'abc', foo: {
-				 * bar: 'abc' } }
-				 */
-				delegateEvents : function(events) {
-					events = flatten(_.defaults(events || {}, getValue(this,
-							'events')));
-					if (!events)
-						return;
-					this.undelegateEvents(true);
-					for ( var key in events) {
-						var method = events[key];
-						if (!_.isFunction(method))
-							method = this[events[key]];
-						if (!method)
-							throw new Error('Method "' + events[key]
-									+ '" does not exist');
-						this.delegateEvent(key, method);
-					}
-				},
+		/**
+		 * Provide additional event delegations. Events without a space will be
+		 * considered as binding to events that are triggered from this view. Hash
+		 * expanded events are allowed. the following are equivalent: events {
+		 * 'foo:bar': 'abc', foo: { bar: 'abc' } }
+		 */
+		delegateEvents : function(events) {
+			events = flatten(_.defaults(events || {}, getValue(this, 'events')));
+			if (!events)
+				return;
+			this.undelegateEvents(true);
+			for ( var key in events) {
+				var method = events[key];
+				if (!_.isFunction(method))
+					method = this[events[key]];
+				if (!method)
+					throw new Error('Method "' + events[key] + '" does not exist');
+				var binding = this.delegateEvent(key, method, this);
+				if (binding) {
+					this._bindings.push(binding);
+				}
+			}
+		},
 
-				/**
-				 * delegate a specific event
-				 * 
-				 * @param key
-				 *            the event key
-				 * @method the unbound method
-				 */
-				delegateEvent : function(key, method) {
-					if (key.indexOf(' ') == -1) {
-						// treat this type of event key as a self event binding
-						var bound = _.bind(method, this);
-						this.on(key, bound);
-						this._delegatedViewEvents[key] = bound;
-						return;
-					}
-					var match = key.match(delegateEventSplitter);
-					var eventName = match[1], selector = match[2];
-					method = _.bind(method, this);
-					eventName += '.delegateEvents' + this.cid;
-					if (selector === '') {
-						this.$el.bind(eventName, method);
-					} else {
-						this.$el.delegate(selector, eventName, method);
-					}
-				},
-
-				/**
-				 * Undelegate all events
-				 * 
-				 * @param includeAll
-				 *            true to include the custom view events that were
-				 *            bound
-				 */
-				undelegateEvents : function(includeAll) {
-					Backbone.View.prototype.undelegateEvents.call(this);
-					var e = this._delegatedViewEvents;
-					if (includeAll) {
-						// unbind all view event bindings
-						for ( var event in e) {
-							this.off(event, e[event]);
-						}
-						this._delegatedViewEvents = {};
+		/**
+		 * delegate a specific event
+		 * 
+		 * @param key
+		 *          the event key
+		 * @method the unbound method
+		 */
+		delegateEvent : function(key, method, target) {
+			// see if we need to override the target
+			var specialTargets = this.getSpecialTargets();
+			if (specialTargets) {
+				for ( var name in specialTargets) {
+					if (key.indexOf(name) === 0) {
+						// we have a match
+						target = specialTargets[name];
+						key = key.substring(name.length);
 					}
 				}
+			}
+
+			if (key.indexOf(' ') == -1) {
+				// treat this type of event key as a self event binding
+				var bound = _.bind(method, this);
+				target.on(key, bound);
+				return function() {
+					target.off(key, bound);
+				};
+			}
+
+			var $el = this.el;
+			var match = key.match(delegateEventSplitter);
+			var eventName = match[1], selector = match[2];
+			method = _.bind(method, this);
+			eventName += '.delegateEvents' + this.cid;
+			if (selector === '') {
+				$el.on(eventName, method);
+				return function() {
+					$el.off(eventName, method);
+				};
+			} else {
+				$el.delegate(selector, eventName, method);
+				return function() {
+					$el.undelegate(selector, eventName, method);
+				};
+			}
+		},
+
+		getSpecialTargets : function() {
+			return {
+				'$window ' : $window,
+				'$el ' : this.$el
+			};
+		},
+
+		/**
+		 * Undelegate all events
+		 * 
+		 * @param includeAll
+		 *          true to include the custom view events that were bound
+		 */
+		undelegateEvents : function() {
+			_.each(this._bindings, function(binding) {
+				binding && binding();
 			});
+			this._bindings = [];
+		},
+
+		getObjectManager : function() {
+			return this.objectManager;
+		}
+	});
 
 	// apply the $uper function
 	_.each([ Blocks.View, Backbone.Model, Backbone.Collection ], function(obj) {
@@ -547,12 +564,11 @@
 		};
 	});
 
-	/***************************************************************************
+	/*****************************************************************************
 	 * MANAGED OBJECTS
-	 **************************************************************************/
+	 ****************************************************************************/
 
-	var parentPrefixPattern = /^parent:/;
-	var loadedObjectPattern = /^\*(.+)/;
+	var loadedObjectPattern = /^\!(.+)/;
 
 	root.ObjectManager = function(parent) {
 		this.parent = parent;
@@ -634,8 +650,7 @@
 				// no need to bind parent event to itself
 				options._binder = this.eventProxy(options.alias, object);
 			}
-			options.handler.init
-					&& options.handler.init.apply(options.handler, initArgs);
+			options.handler.init && options.handler.init.apply(options.handler, initArgs);
 
 			// auto-bind all 'event' references from the handler
 			var events = flatten(options.handler.events);
@@ -643,8 +658,7 @@
 				var bindings = [];
 				for (name in events) {
 					var method = getMethod(events[name], options.handler);
-					bindings.push(this.bindEvent(name, method, object, options)
-							|| {});
+					bindings.push(this.bindEvent(name, method, object, options.handler, options) || {});
 				}
 				options._data.bindings = bindings;
 			}
@@ -653,11 +667,23 @@
 			return options[type];
 		},
 
-		bindEvent : function(event, method, object, options) {
-			var bound = _.bind(method, options.handler);
+		/**
+		 * Bind a specific event
+		 * 
+		 * @param event
+		 *          the event name
+		 * @param method
+		 *          the callback
+		 * @param object
+		 *          the object to bind to
+		 * @param options
+		 *          the options provided with the add call
+		 */
+		bindEvent : function(event, method, object, context, options) {
+			var bound = _.bind(method, context);
 			var target = object;
 
-			// use the * prefix as a marker to wait for a loaded
+			// use the ! prefix as a marker to wait for a loaded
 			// model/collection
 			var loadedCallback = undefined;
 			var match = event.match(loadedObjectPattern);
@@ -680,6 +706,18 @@
 				};
 			}
 
+			// see if we need to override the target
+			var specialTargets = this.getSpecialTargets(object, options);
+			if (specialTargets) {
+				for ( var name in specialTargets) {
+					if (event.indexOf(name) === 0) {
+						// we have a match
+						target = specialTargets[name];
+						event = event.substring(name.length);
+					}
+				}
+			}
+
 			// allow events that are split by a space refer to standard DOM
 			// event & selector
 			if (this.parent.$el && options.selector) {
@@ -700,25 +738,22 @@
 				}
 			}
 
-			// allow the 'parent:' prefix for handler bindings to the parent
-			// instead of the managed object
-			// for instance: bind to the view instead of the model
-			if (event.match(parentPrefixPattern)) {
-				// the 'parent' token has been referenced, bind to the parent
-				// instead
-				event = event.replace(parentPrefixPattern, '');
-				target = this.parent;
-			}
-
 			target.on(event, bound);
 
 			return {
 				destroy : function() {
-					target.off(name, bound);
+					target.off(event, bound);
 					if (loadedCallback) {
 						object.off('fetched', loadedCallback);
 					}
 				}
+			};
+		},
+
+		getSpecialTargets : function(managedObject, options) {
+			return {
+				'parent:' : this.parent,
+				'$window ' : $window
 			};
 		},
 
@@ -737,36 +772,75 @@
 			};
 		},
 
-		exec : function(type, method, args) {
+		/**
+		 * Execute a method on all handler
+		 * 
+		 * @param type
+		 *          optional type filter
+		 * @param method
+		 *          the method name
+		 * @param args
+		 *          method arguments
+		 * @param includeAll
+		 *          true to drill down to any contained object managers (eg: views
+		 *          associated with collection items)
+		 * @returns {AggregateResponse}
+		 */
+		exec : function(type, method, args, includeAll) {
 			// allow usage without type param to indicate all types
 			if (!method || !_.isString(method)) {
 				args = method;
 				method = type;
 				type = undefined;
 			}
-
-			function exec(l, rtn) {
-				for ( var alias in l) {
-					var obj = l[alias];
-					var func = obj.handler[method];
-					rtn[alias] = func && func.apply(obj.handler, args);
-				}
+			if (_.isBoolean(args)) {
+				includeAll = args;
+				args = undefined;
 			}
 
-			var rtn = {};
+			// execute the method on the handler objects
+			function exec(l, rtn) {
+				var count = 0;
+				for ( var alias in l) {
+					count++;
+					var obj = l[alias];
+					var func = obj.handler[method];
+					if (func) {
+						rtn.push(func.apply(obj.handler, args));
+					}
+
+					// handle any subtypes
+					if (includeAll) {
+						var mgrs = obj.handler.getObjectManagers && obj.handler.getObjectManagers();
+						if (mgrs) {
+							_.each(mgrs, function(mgr) {
+								var subRtn = mgr.exec(type, method, args, true);
+								rtn.push.apply(rtn, subRtn.values);
+								count += subRtn.total;
+							});
+						}
+					}
+				}
+				return count;
+			}
+
+			var rtn = [];
+			var count = 0;
 			if (!type) {
 				for ( var type in this.managedObjects) {
-					var typeRtn = {};
-					rtn[type] = typeRtn;
-					exec(this.managedObjects[type], typeRtn);
+					count += exec(this.managedObjects[type], rtn);
 				}
-				return new AggregateResponse(rtn, true);
+				return new AggregateResponse(rtn, count);
 			} else {
-				exec(this.getAll(type), rtn);
-				return new AggregateResponse(rtn, false);
+				count += exec(this.getAll(type), rtn);
+				return new AggregateResponse(rtn, count);
 			}
 		},
 
+		/**
+		 * Clean up this manager and all associated handlers by calling
+		 * handler.destroy.
+		 */
 		destroy : function() {
 			for ( var type in this.managedObjects) {
 				_.each(this.managedObjects[type], function(obj) {
@@ -781,52 +855,46 @@
 		}
 	});
 
-	function AggregateResponse(data, typed) {
-		var values = [];
-		var total = 0;
-		var responded = 0;
-		function eval(data) {
-			for ( var i in data) {
-				total++;
-				if (!_.isUndefined(data[i])) {
-					responded++;
-					values.push(data[i]);
-				}
-			}
-		}
-		if (typed) {
-			for ( var i in data) {
-				eval(data[i]);
-			}
-		} else {
-			eval(data);
-		}
-
+	/**
+	 * Return type for exec call
+	 */
+	function AggregateResponse(data, total) {
+		var values = _.without(data, [ undefined ]);
 		return {
+			// total number of handlers that had an impl for the method
 			total : total,
-			responded : responded,
+			// total number of handlers which had a response other than undefined
+			responded : values.length,
+			// a list of response values
+			values : values,
+
+			// did all of the values response match the provided value?
 			all : function(val, allowTruthy) {
 				for ( var i in values) {
+					var value = values[i];
 					if (allowTruthy) {
-						if ((val && !values[i]) || (!val && values[i])) {
+						if ((val && !value) || (!val && value)) {
 							return false;
 						}
 					} else {
-						if (!(val === values[i])) {
+						if (!(val === value)) {
 							return false;
 						}
 					}
 				}
 				return true;
 			},
+
+			// did any of the values response match the provided value?
 			any : function(val, allowTruthy) {
 				for ( var i in values) {
+					var value = values[i];
 					if (allowTruthy) {
-						if ((val && values[i]) || (!val && !values[i])) {
+						if ((val && value) || (!val && !value)) {
 							return true;
 						}
 					} else {
-						if (val === values[i]) {
+						if (val === value) {
 							return true;
 						}
 					}
@@ -925,8 +993,7 @@
 			if (_.isString(methodOrName)) {
 				var func = parent[methodOrName];
 				if (!func)
-					throw new Error('Invalid function name "' + methodOrName
-							+ '"');
+					throw new Error('Invalid function name "' + methodOrName + '"');
 				return func;
 			} else {
 				return methodOrName;

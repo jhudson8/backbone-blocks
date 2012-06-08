@@ -85,7 +85,7 @@ Blocks.Handler.Field.SimpleFieldHandler = {
 Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 
 	events : {
-		'*parent:rendered' : 'rendered',
+		'!parent:rendered' : 'rendered',
 		'change input' : 'inputChanged',
 		'change select' : 'inputChanged',
 		'change textarea' : 'inputChanged'

@@ -5,7 +5,8 @@
 	};
 	_.extend(ModelChangeHandler.prototype, {
 		events : {
-			'*parent:rendered' : 'onRendered',
+			'$window resize' : 'onWindowResize',
+			'!parent:rendered' : 'onRendered',
 			foo : {
 				event2 : 'onEvent2',
 				bar : {
@@ -25,7 +26,10 @@
 		},
 		onClick : function() {
 			this.parent.clicked = true;
-		}
+		},
+		onWindowResize : function() {
+			this.parent.resized = true;
+		},
 	});
 
 	test("exec", function() {
@@ -148,6 +152,22 @@
 				btn1.click();
 				equal(!!view.clicked, true,
 						"Element bindings filtered by selector should be enabled for handler");
+
+				equal(view.resized, undefined, 'Window has not been resized');
+				$(window).resize();
+				equal(view.resized, true, 'Window has been resized');
+				view.resized = false;
+
+				view.destroy();
+				$(window).resize();
+				equal(view.resized, false, 'Window has been resized but we did');
+
+				view.event2 = false;
+				view.event3 = false;
+				model.trigger('foo:event2');
+				equal(!!view.event2, false, "Model binding is off after destroy");
+				model.trigger('foo:bar:event3');
+				equal(!!view.event3, false, "Model binding is off after destroy (another)");
 			});
 
 	test("destroy", function() {
@@ -156,7 +176,7 @@
 		var destroyed = false;
 		var handler = {
 			events : {
-				'*parent:rendered' : 'dummy',
+				'!parent:rendered' : 'dummy',
 				'click button' : 'dummy'
 			},
 			destroy : function() {

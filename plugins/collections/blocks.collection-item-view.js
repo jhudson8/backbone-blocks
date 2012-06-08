@@ -146,6 +146,12 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.Base
 				this.render.call(this);
 			},
 
+			getObjectManagers: function() {
+				var rtn = [];
+				rtn.push.apply(rtn, this.subViews);
+				return rtn;
+			},
+
 			destroy : function() {
 				for ( var id in this.subViews) {
 					this.subViews[id].destroy();
@@ -255,3 +261,4 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.Base
 				};
 			}
 		});
+

@@ -61,43 +61,58 @@ var Blocks = {};
 	 */
 	_content.HashProvider = _base.extend({
 		get : function(path, view) {
-			// see if we can get from the view first
-			var rtn = undefined;
-			if (view && view.templates) {
-				rtn = view.templates[path];
-				var templateName = _defaults.getViewTemplateName(view);
-				if (!rtn && templateName) {
-					// allow the special 'template' name if last part is same as view name
-					if (path === templateName) {
-						rtn = view.templates.template;
+			var pathParts = path ? path.split('/') : undefined;
+			function navigate(obj, parts) {
+				var parent = obj;
+				for (var i=0; i<parts.length; i++) {
+					if (!parent) break;
+					parent = parent[parts[i]];
+				}
+				return parent;
+			}
+			function strVal(obj, prop) {
+				if (obj && prop) {
+					var rtn = obj[prop];
+					if (_.isString(rtn)) {
+						return rtn;
+					}
+				}
+			}
+			function checkPaths(obj) {
+				if (obj) {
+					if (!pathParts) {
+						return strVal(obj, view.viewName) || strVal(obj, 'template');
+					} else {
+						var parent = navigate(obj, pathParts);
+						if (_.isString(parent)) return parent;
 					}
 				}
 			}
 
-			// if not, pull from the root using the view package if
-			// available
-			if (!rtn) {
-				var parent = Blocks.templates;
-				var packageName = _defaults.getViewPackage(view);
-				path = (packageName ? (packageName.replace('.', '/') + '/')
-						: '')
-						+ path;
-				var parts = path.split('/');
-				for ( var i in parts) {
-					if (!parent)
-						break;
-					parent = parent[parts[i]];
+			var rtn;
+			if (view && view.templates) {
+				rtn = checkPaths(view.templates);
+			}
+
+			if (!rtn && Blocks.templates) {
+				var packageParts = (view && view.viewPackage) ? view.viewPackage.split('.') : undefined;
+				if (packageParts) {
+					var root = navigate(Blocks.templates, packageParts);
+					if (view) {
+						if (view && view.viewName) {
+							root = root[view.viewName];
+						}
+						if (!path && _.isString(root)) {
+							return root;
+						}
+					}
+					rtn = checkPaths(root || Blocks.templates);
+				} else {
+					rtn = checkPaths(root || Blocks.templates);
 				}
-				rtn = parent;
 			}
-			if (rtn && !_.isString(rtn)) {
-				// allow for the actual path to reference a hash with a
-				// 'template' property. This helps if
-				// collection templates use the view template as the
-				// path prefix
-				rtn = rtn.template;
-			}
-			if (!_.isString(rtn)) {
+			
+			if (!rtn || !_.isString(rtn)) {
 				throw new Error('Undefined template "' + path + '"');
 			}
 			return rtn;
@@ -143,7 +158,7 @@ var Blocks = {};
 	_handler.ModelContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var model = this.options[this.options._data.type];
-			if (this.options.alias === _defaults.modelAlias) {
+			if (this.options.alias === Blocks.Defaults.modelAlias) {
 				// single model, go straight to attributes
 				_.defaults(context, model.attributes);
 			} else {
@@ -262,7 +277,7 @@ var Blocks = {};
 	 **************************************************************************/
 
 	/**
-	 * Backbone view with enhanced fuctionality. Template rendering, form
+	 * Backbone view with enhanced functionality. Template rendering, form
 	 * serialization, sub views, multiple collection handling, additional event
 	 * delegation, etc...
 	 */
@@ -281,24 +296,19 @@ var Blocks = {};
 
 					this.templateEngine = Blocks.templateEngine;
 					this.contentProvider = Blocks.contentProvider;
-					this.objectManager = new _defaults.objectManagerClass(this);
+					this.objectManager = new Blocks.Defaults.objectManagerClass(
+							this);
 
-					if (options && options.model && _defaults.autoAddModel) {
+					if (options && options.model
+							&& Blocks.Defaults.autoAddModel) {
 						this.addModel(options.model);
 					}
 					if (options && options.collection
-							&& _defaults.autoAddCollection) {
+							&& Blocks.Defaults.autoAddCollection) {
 						this.addCollection(options.collection);
 					}
 
 					this.init && this.init(this.options);
-				},
-
-				/**
-				 * Return the template path for this view
-				 */
-				getTemplatePath : function() {
-					return Blocks.Defaults.getViewTemplateName(this);
 				},
 
 				/**
@@ -343,15 +353,7 @@ var Blocks = {};
 					options = options || {};
 					if (!options.alias)
 						options.alias = ('mixin_' + ++this.mixinId); // alias
-					// would
-					// only
-					// be
-					// set
-					// if it
-					// needed
-					// to be
-					// removed
-					// later
+					// would only be set if it needed to be removed later
 					options.mixin = this; // 'mixin' prop represent context
 					// object (object that the handler
 					// will get event auto-bind to)
@@ -369,18 +371,19 @@ var Blocks = {};
 				 */
 				addView : function() {
 					var options = this.viewOptions.apply(this, arguments);
-					return this.objectManager.add(_defaults.viewAlias, options);
+					return this.objectManager.add(Blocks.Defaults.viewAlias,
+							options);
 				},
 
 				viewOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : _defaults.viewAlias,
+						type : Blocks.Defaults.viewAlias,
 						objectClass : Backbone.View,
-						alias : _defaults.viewAlias,
-						handlerClass : _defaults.viewHandlerClass,
+						alias : Blocks.Defaults.viewAlias,
+						handlerClass : Blocks.Defaults.viewHandlerClass,
 						addSelector : true,
-						bubbleUp : _defaults.bubbleViewEvents
+						bubbleUp : Blocks.Defaults.bubbleViewEvents
 					});
 				},
 
@@ -393,19 +396,19 @@ var Blocks = {};
 				 */
 				addCollection : function() {
 					var options = this.collectionOptions.apply(this, arguments);
-					return this.objectManager.add(_defaults.collectionAlias,
-							options);
+					return this.objectManager.add(
+							Blocks.Defaults.collectionAlias, options);
 				},
 
 				collectionOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : _defaults.collectionAlias,
+						type : Blocks.Defaults.collectionAlias,
 						objectClass : Backbone.Collection,
-						alias : _defaults.collectionAlias,
-						handlerClass : _defaults.collectionHandlerClass,
+						alias : Blocks.Defaults.collectionAlias,
+						handlerClass : Blocks.Defaults.collectionHandlerClass,
 						addSelector : true,
-						bubbleUp : _defaults.bubbleCollectionEvents
+						bubbleUp : Blocks.Defaults.bubbleCollectionEvents
 					});
 				},
 
@@ -417,17 +420,17 @@ var Blocks = {};
 				 */
 				addModel : function() {
 					var options = this.modelOptions.apply(this, arguments);
-					return this.objectManager
-							.add(_defaults.modelAlias, options);
+					return this.objectManager.add(Blocks.Defaults.modelAlias,
+							options);
 				},
 
 				modelOptions : function() {
 					return populateOptions({
 						arguments : arguments,
-						type : _defaults.modelAlias,
+						type : Blocks.Defaults.modelAlias,
 						objectClass : Backbone.Model,
-						alias : _defaults.modelAlias,
-						handlerClass : _defaults.modelHandlerClass,
+						alias : Blocks.Defaults.modelAlias,
+						handlerClass : Blocks.Defaults.modelHandlerClass,
 						addSelector : true,
 						bubbleUp : this.bubbleUpEvents
 					});
@@ -442,8 +445,8 @@ var Blocks = {};
 				 */
 				render : function() {
 					this.trigger('rendering');
-					var content = this.execTemplate(this.getTemplatePath(),
-							this.getContext());
+					var content = this.execTemplate(undefined, this
+							.getContext());
 					this.$el.html(content);
 					this.trigger('rendered');
 					return this;
@@ -605,6 +608,7 @@ var Blocks = {};
 			};
 			var bindings = options._data.bindings;
 			options.handler.options = options;
+			options.handler[type] = options[type];
 			// if a selector property was provided, auto-set $el on the handler
 			// and update it as the parent renders itself
 			var parent = options.handler.parent = this.parent;
@@ -891,7 +895,7 @@ var Blocks = {};
 		if (!rtn.alias)
 			rtn.alias = data.alias;
 		if (data.addSelector && !rtn.selector)
-			rtn.selector = _defaults.selectorGenerator(rtn);
+			rtn.selector = Blocks.Defaults.selectorGenerator(rtn);
 		if (_.isUndefined(rtn.bubbleUp))
 			rtn.bubbleUp = data.bubbleUp;
 		return rtn;
@@ -936,32 +940,34 @@ var Blocks = {};
 	_handler.Model = {};
 	_handler.View = {};
 
-	// set the defaults
-	Blocks.templateEngine = new _template.Underscore();
-	Blocks.contentProvider = new _content.HashProvider();
-	var _defaults = Blocks.Defaults = {
-		objectManagerClass : Blocks.ObjectManager,
-		modelHandlerClass : _handler.ModelContextContributor,
-		collectionHandlerClass : _handler.CollectionContextContributor,
-		viewHandlerClass : _handler.SimpleSubView,
-		modelAlias : 'model',
-		collectionAlias : 'collection',
-		viewAlias : 'view',
-		containerCssClass : 'blk-container',
-		selectorGenerator : function(options) {
-			return '.' + options.alias;
-		},
-		autoAddModel : true,
-		autoAddCollection : true,
-		bubbleCollectionEvents : false,
-		bubbleModelEvents : false,
-		bubbleViewEvents : false,
-		getViewPackage : function(view) {
-			return (view && view.viewPackage);
-		},
-		getViewTemplateName : function(view) {
-			return (view && (getValue(view, 'template') || view.viewName));
-		}
+	Blocks.resetDefaults = function() {
+		Blocks.templateEngine = new _template.Underscore();
+		Blocks.contentProvider = new _content.HashProvider();
+		return Blocks.Defaults = {
+			objectManagerClass : Blocks.ObjectManager,
+			modelHandlerClass : _handler.ModelContextContributor,
+			collectionHandlerClass : _handler.CollectionContextContributor,
+			viewHandlerClass : _handler.SimpleSubView,
+			modelAlias : 'model',
+			collectionAlias : 'collection',
+			viewAlias : 'view',
+			containerCssClass : 'blk-container',
+			selectorGenerator : function(options) {
+				return '.' + options.alias;
+			},
+			autoAddModel : true,
+			autoAddCollection : true,
+			bubbleCollectionEvents : false,
+			bubbleModelEvents : false,
+			bubbleViewEvents : false,
+			getViewPackage : function(view) {
+				return (view && view.viewPackage);
+			},
+			getViewTemplateName : function(view) {
+				return (view && (getValue(view, 'template') || view.viewName || 'template'));
+			}
+		};
 	};
+	Blocks.resetDefaults();
 
 })();

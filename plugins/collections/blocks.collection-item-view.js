@@ -5,7 +5,7 @@
  * collection - onRemove: called when a model was removed from the collection -
  * onReset: called when the collection was reset
  */
-Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
+Blocks.Handler.Collection.ItemView = Blocks.Handler.Base
 		.extend({
 
 			events : {
@@ -27,7 +27,7 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 			 * for each item, onAdd will be called.
 			 */
 			render : function() {
-				var el = this.el = this.getElement();
+				var el = this.$el;
 				if (el.size() == 0)
 					return;
 
@@ -39,6 +39,24 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 					this.subViews[id].destroy();
 				}
 				this.subViews = {};
+
+				// use the full template if exists
+				var fullTemplate = this.getTemplatePath() + 'full';
+				if (this.view.contentProvider.isValid(fullTemplate, this.view)) {
+					var id = _.uniqueId('blk_');
+					var context = _.defaults({
+						itemClass : id
+					}, this.collection);
+					this.$el.html(Blocks.templateEngine.loadPath(fullTemplate,
+							this.view)(context));
+					this.containerEl = this.$el.find('.' + id);
+					if (!this.containerEl.size()) {
+						throw new Error(
+								'The collection container must be referenced in the full template (use itemClass token)');
+					}
+				} else {
+					this.containerEl = this.$el;
+				}
 
 				// call onAdd for each item
 				if (this.collection.size() > 0) {
@@ -61,6 +79,11 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 			 * render the content for this model
 			 */
 			onAdd : function(model) {
+				var id = model.id;
+				if (!id) {
+					id = model._civId = _.uniqueId('blk_');
+				}
+
 				if (this.wasEmpty) {
 					// just render like normal if we used to be empty
 					return this.render();
@@ -78,39 +101,40 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 				if (data instanceof Backbone.View) {
 					data.render();
 					itemEl = data.$el;
-					this.subViews[model.id] = data;
+					this.subViews[id] = data;
 				} else {
 					itemEl = $(this.itemTemplateContainer(model));
 					itemEl.append(data);
 				}
 
 				// set the data attribute and append the item element
-				itemEl.attr('data-view', model.id);
+				itemEl.attr('data-view', id);
 				itemEl.addClass(Blocks.Defaults.collectionContainerClass);
-				this.el.append(itemEl);
+				this.containerEl.append(itemEl);
 			},
 
 			/**
 			 * remove the content relating to this model
 			 */
 			onRemove : function(model) {
-				var view = this.subViews[model.id];
+				var id = model.id;
+				if (!id) {
+					id = model._civId;
+					delete model._civId;
+				}
+
+				var view = this.subViews[id];
 				if (view) {
 					view.destroy();
-					delete this.subViews[model.id];
+					delete this.subViews[id];
 				}
 
 				if (this.collection.size() == 0) {
 					this.render();
 				} else {
-					var items = this.el.find('.'
-							+ Blocks.Defaults.collectionContainerClass);
-					for ( var i = 0; i < items.size(); i++) {
-						if (items.get(i).getAttribute('data-view') === model.id) {
-							$(items.get(i)).remove();
-							return;
-						}
-					}
+					var item = this.containerEl
+							.find('[data-view="' + id + '"]');
+					item.remove();
 				}
 			},
 
@@ -126,6 +150,9 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 				for ( var id in this.subViews) {
 					this.subViews[id].destroy();
 				}
+				this.collection.each(function(model) {
+					model._civId = void 0;
+				});
 			},
 
 			// non-API methods are below
@@ -134,17 +161,19 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 			 */
 			onEmpty : function() {
 				this.wasEmpty = true;
-				this.el.html(this.view.execTemplate(this.getTemplatePath()
-						+ '-empty'));
+				this.containerEl = void 0;
+				this.$el.html(this.view.execTemplate(this.getTemplatePath()
+						+ 'empty'));
 			},
 
 			/**
 			 * Called when the collection should be rendered in an empty state
 			 */
 			onLoading : function() {
-				var path = this.getTemplatePath() + '-loading';
+				var path = this.getTemplatePath() + 'loading';
 				if (this.view.contentProvider.isValid(path, this.view)) {
-					this.el.html(this.view.execTemplate(path, this.view));
+					this.containerEl = void 0;
+					this.$el.html(this.view.execTemplate(path, this.view));
 				} else {
 					this.onEmpty();
 				}
@@ -178,7 +207,7 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 			 *            the item model
 			 */
 			itemTemplateContainer : function(model) {
-				return this.view.make('div');
+				return this.view.make(this.options.itemTag || 'div');
 			},
 
 			/**
@@ -188,12 +217,11 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.BaseElementHandler
 			 *            the item model
 			 */
 			getTemplatePath : function(model) {
-				var prefix = this.view.getTemplatePath() + '/'
-						+ (this.options.alias || 'items');
+				var prefix = (this.options.alias || 'items');
 				if (model) {
-					return prefix + '-item';
+					return prefix + '/item';
 				} else {
-					return prefix;
+					return prefix + '/';
 				}
 			},
 

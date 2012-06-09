@@ -2,7 +2,6 @@
 	var root = env.Blocks = {};
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
-
 	var $window = $(window);
 
 	// package and base handler setup
@@ -54,13 +53,14 @@
 	 * 'templates' property or on Blocks.templates. If in Blocks.templates then
 	 * the view 'package' property will be prefixed to the path. Package segments
 	 * should be separated with '.'. Each package segment will map to a
-	 * sub-property within Blocks.templates. So, a 'foo' path with a 'abc.def'
-	 * package would be set as follows: Blocks.templates = { abc: { def: { foo:
-	 * "This is the foo content" } } }
+	 * sub-property within Blocks.templates.
 	 */
 	_content.HashProvider = _base.extend({
 		get : function(path, view) {
+			// split the path into parts
 			var pathParts = path ? path.split('/') : undefined;
+
+			// navigate from a root through hash properties
 			function navigate(obj, parts) {
 				var parent = obj;
 				for ( var i = 0; i < parts.length; i++) {
@@ -70,6 +70,8 @@
 				}
 				return parent;
 			}
+
+			// return a string value from a property value on an object
 			function strVal(obj, prop) {
 				if (obj && prop) {
 					var rtn = obj[prop];
@@ -78,6 +80,8 @@
 					}
 				}
 			}
+
+			// check all path options from a root which could contain the view template
 			function checkPaths(obj) {
 				if (obj) {
 					if (!pathParts) {
@@ -91,10 +95,12 @@
 			}
 
 			var rtn;
+			// first check view.templates
 			if (view && view.templates) {
 				rtn = checkPaths(view.templates);
 			}
 
+			// then check Block.templates
 			if (!rtn && root.templates) {
 				var packageParts = (view && view.viewPackage) ? view.viewPackage.split('.') : undefined;
 				if (packageParts) {
@@ -125,29 +131,7 @@
 	});
 
 	/*****************************************************************************
-	 * CORE ABSTRACT HANDLERS
-	 ****************************************************************************/
-
-	/**
-	 * Base handler that provides utility methods to get selector value and bind
-	 * events
-	 */
-	_handler.ElBase = _handler.Base.extend({
-		elBind : function(eventName, selector, fName) {
-			var func = _.isString(fName) ? this[fName] : fName;
-			if (!func)
-				throw new Error('Invalid function name "' + fName + '"');
-			func = _.bind(func, this);
-			if (!selector) {
-				this.view.$el.bind(eventName, func);
-			} else {
-				this.view.$el.delegate(selector, eventName, func);
-			}
-		}
-	});
-
-	/*****************************************************************************
-	 * DEFAULT MODEL AND COLLECTION HANDLER
+	 * DEFAULT MODEL, COLLECTION SUBVIEW HANDLER
 	 ****************************************************************************/
 
 	/**
@@ -178,10 +162,6 @@
 			context[this.options.alias] = collection.models;
 		}
 	});
-
-	/*****************************************************************************
-	 * DEFAULT SUBVIEW HANDLER
-	 ****************************************************************************/
 
 	/**
 	 * Blocks.SubViewHandlers is the package structure for sub-view handlers.
@@ -455,10 +435,6 @@
 			return this;
 		},
 
-		/***************************************************************************
-		 * EVENTS
-		 **************************************************************************/
-
 		/**
 		 * Provide additional event delegations. Events without a space will be
 		 * considered as binding to events that are triggered from this view. Hash
@@ -564,6 +540,70 @@
 		};
 	});
 
+	
+	/*****************************************************************************
+	 * PAGE
+	 ****************************************************************************/
+	/**
+	 * The page is a special view that is used to transition to different views.  This is the main
+	 * dynamic portion of the application.  Unless the secondary=true options is provided, the page
+	 * will be available as Blocks.page. 
+	 */
+	root.Page = root.View.extend({
+		
+		/**
+		 * Init optoins:
+		 * 	pageEl: optional sub selector within the page el (otherwise page el is used)
+		 *  secondary: by default, Blocks.page will be set as this page *unless* 'secondary' is truthy
+		 */
+		init: function(options) {
+			this.pageEl = options.pageEl ? this.$(options.pageEl) : this.$el;
+			if (!options.secondary) {
+				root.page = this;
+			}
+		},
+
+		/**
+		 * Transition to a new view.  The leaving view will trigger 'leaving' and 'left' events.
+		 * The incoming view will trigger the 'transitioning' and 'transitioned' events.
+		 */
+		setView: function(view, options) {
+			options = options || {};
+			if (this.currentView) {
+				this.trigger('leaving', this.currentView, options);
+				this.currentView.destroy();
+				this.trigger('left', this.currentView, options);
+			}
+
+			var _success = options.success;
+			var success = _.bind(function() {
+				_success && _success();
+				this.trigger('transitioned', view, options);
+				this.currentView = view;
+			}, this);
+			options.success = success;
+			var transition = this.getTransition(this.pageEl, view, this.currentView, options);
+			
+			this.trigger('transitioning', view, options);
+			view.render();
+			transition();
+		},
+	
+		/**
+		 * Return a transition function which will be used to replace the old view with the new view
+		 */
+		getTransition: function(root, view, previousView, options) {
+			return function() {
+				root.html('');
+				root.append(view.$el);
+				options.success();
+			};
+		},
+
+		render: function() {}
+	});
+	
+	
 	/*****************************************************************************
 	 * MANAGED OBJECTS
 	 ****************************************************************************/
@@ -909,9 +949,6 @@
 		return function(event) {
 			var args = _.toArray(arguments);
 			args[0] = alias + ':' + event;
-			context.trigger.apply(context, args);
-			args[0] = alias + ':all';
-			args.splice(1, 0, event);
 			context.trigger.apply(context, args);
 		};
 	}

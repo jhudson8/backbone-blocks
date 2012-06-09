@@ -22,7 +22,6 @@ var Blocks = {
 		},
 		Handler: {
 			Base: {},
-			ElBase: {},
 			ModelContextContributor: {},
 			CollectionContextContributor: {}
 		},

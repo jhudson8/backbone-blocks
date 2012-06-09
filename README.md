@@ -20,7 +20,7 @@ Although many common plugin implementations will be available within this projec
   * Collection: allow views to contain collections that make UI contributions
   * Mixin: provide additional functionality to views
 
-[Learn more about Pages in the Wiki](https://github.com/jhudson8/backbone-pages/wiki)
+[Learn more about Pages in the Wiki](https://github.com/jhudson8/backbone-blocks/wiki)
 
-[API Docs](http://jhudson8.github.com/backbone-pages/docs/index.html) (work in progress)
+[API Docs](http://jhudson8.github.com/backbone-blocks/docs/index.html) (work in progress)
 

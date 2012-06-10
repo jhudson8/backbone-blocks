@@ -8,7 +8,7 @@
 	var _handler = root.Handler = {};
 	var _template = root.Template = {};
 	var _content = root.Content = {};
-	_handler.Field = {};
+	var _field = _handler.Field = {};
 
 	var _base = _handler.Base = function(options) {
 		if (this.setOptions) {
@@ -130,6 +130,205 @@
 		}
 	});
 
+	
+	/*****************************************************************************
+	 * FIELD SERIALIZATION & SYNCHRONIZATION
+	 ****************************************************************************/
+
+	/**
+	 * Default strategy to match DOM elements with model fields.  Requires a field
+	 * which has a name value which matches the model field attributes.  Any custom or composite
+	 * types can set a data-type attribute and will be ignored by the simple naming strategy.
+	 */
+	_field.SimpleNamingStragety = {
+			/**
+			 * Return the model field key for a DOM element or null if N/A
+			 * @param the DOM element
+			 */
+			getFieldKey: function(element) {
+				return element.getAttribute('name');
+			},
+
+			/**
+			 * Return the jquery selector for all elements associated with the field key
+			 * @param key the model field key
+			 * @param el the root jquery selector
+			 */
+			getElement : function(key, el) {
+				return el.find('[name="' + key + '"]');
+			},
+			
+			/**
+			 * Return an map of elements with key as model field key and value as single element or list of elements.  This
+			 * strategy will ignore all elements with a data-type attribute (assuming another naming strategy will override)
+			 * @param el the root jquery selector
+			 */
+			getElements : function(root) {
+				var elements = root.find('[name]');
+				var rtn = {};
+				elements.each(function(element, index) {
+					var name = element.getAttribute('name');
+					var el = rtn[name];
+					if (el && !element.getAttribute('data-type')) {
+						rtn[name] = [el, element];
+					} else {
+						rtn[name] = element;
+					}
+				});
+				return rtn;
+			}
+	};
+
+	/**
+	 * Default handler for serializing and mapping field input values
+	 */
+	_field.SimpleInputHandler = {
+
+			/**
+			 * Serialize a single input field
+			 * @param key the attributes map key
+			 * @param element the single DOM element
+			 * @param attr the attributes hash
+			 */
+			serializeField : function(element) {
+				var el = $(element);
+				var type = el.attr('type');
+				var val = el.val();
+				if (type === 'checkbox') {
+					return !!element.checked;
+				} else if (type === 'radio' && (val === 'true' || val === 'false')) {
+					return !!(val === 'true');
+				} else {
+					return val;
+				}
+			},
+
+		/**
+		 * Serialize the input(s) represented by the element(s) to the attributes map using the provided key
+		 * @param key the attributes map key
+		 * @param element element or list of elements
+		 * @param attr the attributes hash
+		 */
+		serialize : function(key, element, attr) {
+			attr = attr || {};
+			element.each(_.bind(function(index, element) {
+				this.serializeField(element);
+			}, this));
+			return attr;
+		},
+
+		/**
+		 * Set the element(s) value using the provided value
+		 * @param key the model field key
+		 * @param value the value to set
+		 * @param el the jquery/zepto wrapped element selection
+		 */
+		setElementValue : function(key, value, el) {
+			var size = el.length;
+			if (!size || _.isUndefined(value))
+				return;
+			
+			// boolean representing on/off values for checkbox or radio
+			if (_.isBoolean(value)) {
+				el.each(function(index, element) {
+					var eVal = element.getAttribute('value');
+					if ((value && eVal === 'true') || (!value && eVal === 'false')) {
+						element.checked = true;
+					} else {
+						element.checked = false;
+					}
+				});
+				return true;
+			}
+			
+			function setString (stringVal, el) {
+				var type = (el.attr('type') || 'text').toLowerCase();
+				if (type === 'checkbox' || type == 'radio') {
+					if (stringVal === el.val()) {
+						el.attr('checked', 'checked');
+					} else {
+						el.removeAttr('checked');
+					}
+				} else {
+					el.val(stringVal);
+				}
+			}
+
+			// string value for text/select/radio choice
+			if (_.isString(value)) {
+				if (el.length === 1) {
+					setString(value, el);
+				} else {
+					el.each(function(index, el) {
+						setString(value, $(el));
+					});
+				}
+				return true;
+			}
+			return false;
+		}
+	};
+
+	/**
+	 * Constructor can either be a list of or a single hash containing 'namingStrategy' and 'inputHandler'
+	 */
+	_field.Serializer = _base.extend({
+		setOptions: function(options) {
+			if (!options) {
+				this.entries = [{
+					namingStrategy: _field.SimpleNamingStragety,
+					inputHandler: _field.SimpleInputHandler
+				}];
+			} else if (_.isArray(options)) {
+				this.entries = options;
+			} else {
+				this.entries = [options];
+			}
+		},
+
+		serializeField: function(el) {
+			for (var i=0; i<this.entries.length; i++) {
+				var entry = this.entries[i];
+				var key = entry.namingStrategy.getFieldKey(el);
+				if (key) {
+					var val = entry.inputHandler.serializeField && entry.inputHandler.serializeField(el);
+					if (!_.isUndefined(val)) {
+						var rtn = {};
+						rtn[key] = val;
+						return rtn;
+					}
+					else {
+						return;
+					}
+				}
+			}
+		},
+
+		serialize: function(root, attr) {
+			attr = attr || {};
+			_.each(this.entries, function(entry) {
+				var elements = entry.namingStragety.getElements(root);
+				for (var name in elements) {
+					var _elements = elements[name];
+					entry.inputHandler.serialize(name, _elements, attr);
+				}
+			});
+			return attr;
+		},
+
+		setValues: function(root, model) {
+			if (model instanceof Backbone.Model) {
+				model = model.attributes;
+			}
+			_.each(this.entries, function(entry) {
+				for (var key in model) {
+					var el = entry.namingStrategy.getElement(key, root);
+					entry.inputHandler.setElementValue(key, model[key], $(el));
+				}
+			});
+		}
+	});
+	
 	/*****************************************************************************
 	 * DEFAULT MODEL, COLLECTION SUBVIEW HANDLER
 	 ****************************************************************************/
@@ -278,6 +477,7 @@
 
 			this.templateEngine = root.templateEngine;
 			this.contentProvider = root.contentProvider;
+			if (this.serializer) this.serializer = Blocks.serializer;
 			this.objectManager = new root.Defaults.objectManagerClass(this);
 
 			if (options && options.model && root.Defaults.autoAddModel) {
@@ -302,7 +502,7 @@
 		 *          suppress any errors
 		 * @trigger 'template:error' if errors were suppressed and an error occured
 		 */
-		execTemplate : function(path, context, options) {
+		mergeTemplate : function(path, context, options) {
 			try {
 				return this.templateEngine.loadPath(path, this, options)(context);
 			} catch (e) {
@@ -408,6 +608,10 @@
 			});
 		},
 
+		serialize: function(el) {
+			return this.serializer.serialize(el || this.$el);
+		},
+
 		/**
 		 * Get template content using property 'template' or 'name' and render it
 		 * using this.getContext as data context
@@ -417,7 +621,7 @@
 		 */
 		render : function() {
 			this.trigger('rendering');
-			var content = this.execTemplate(undefined, this.getContext());
+			var content = this.mergeTemplate(undefined, this.getContext());
 			this.$el.html(content);
 			this.trigger('rendered');
 			return this;
@@ -1046,6 +1250,7 @@
 	root.resetDefaults = function() {
 		root.templateEngine = new _template.Underscore();
 		root.contentProvider = new _content.HashProvider();
+		root.serializer = new _field.Serializer();
 		return root.Defaults = {
 			objectManagerClass : Blocks.ObjectManager,
 			modelHandlerClass : _handler.ModelContextContributor,

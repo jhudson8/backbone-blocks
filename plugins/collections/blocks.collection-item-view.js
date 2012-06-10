@@ -168,7 +168,7 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.Base
 			onEmpty : function() {
 				this.wasEmpty = true;
 				this.containerEl = void 0;
-				this.$el.html(this.view.execTemplate(this.getTemplatePath()
+				this.$el.html(this.view.mergeTemplate(this.getTemplatePath()
 						+ 'empty'));
 			},
 
@@ -179,7 +179,7 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.Base
 				var path = this.getTemplatePath() + 'loading';
 				if (this.view.contentProvider.isValid(path, this.view)) {
 					this.containerEl = void 0;
-					this.$el.html(this.view.execTemplate(path, this.view));
+					this.$el.html(this.view.mergeTemplate(path, this.view));
 				} else {
 					this.onEmpty();
 				}
@@ -202,7 +202,7 @@ Blocks.Handler.Collection.ItemView = Blocks.Handler.Base
 			 *            the item model
 			 */
 			onItem : function(model) {
-				return this.view.execTemplate(this.getTemplatePath(model), this
+				return this.view.mergeTemplate(this.getTemplatePath(model), this
 						.context(model));
 			},
 

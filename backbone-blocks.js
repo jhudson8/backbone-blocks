@@ -963,16 +963,21 @@
 		},
 
 		add : function(type, options) {
-			var l = this.managedObjects[type];
-			if (!l) {
-				l = this.managedObjects[type] = [];
-			}
-			for ( var i = 0; i < l.length; i++) {
-				if (l[i].alias === options.alias) {
-					// remove the previous
-					l[i].destroy();
-					break;
+			if (options.alias) {
+				var l = this.managedObjects[type];
+				if (!l) {
+					l = this.managedObjects[type] = [];
 				}
+				for ( var i = 0; i < l.length; i++) {
+					if (l[i].alias === options.alias) {
+						// remove the previous
+						l[i].destroy();
+						break;
+					}
+				}
+			} else {
+				// give it a unique alias
+				options.alias = _.uniqueId('_' + type + '-');
 			}
 
 			// initialize options

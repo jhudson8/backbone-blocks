@@ -1047,16 +1047,13 @@
 
 			// allow events that are split by a space refer to standard DOM
 			// event & selector
-			if (this.parent.$el && options.selector) {
+			if (this.parent.$el) {
 				// check for element binding
 				var parts = event.split(' ');
 				if (parts.length > 1) {
 					var parent = this.parent;
-					var _selector = options.selector;
-					if (parts[1] !== 'this') {
-						_selector += ' ' + parts[1];
-					}
-					parent.$el.delegate(parts[1], parts[0], bound);
+					var _selector = options.selector ? options.selector + ' ' + parts[1] : parts[1];
+					parent.$el.delegate(_selector, parts[0], bound);
 					return {
 						destroy : function() {
 							parent.$el.undelegate(parts[1], parts[0], bound);
@@ -1285,7 +1282,7 @@
 			rtn.handler = new data.handlerClass();
 		if (!rtn.alias)
 			rtn.alias = data.alias;
-		if (data.addSelector && !rtn.selector)
+		if (data.addSelector && _.isUndefined(rtn.selector))
 			rtn.selector = root.Defaults.selectorGenerator(rtn);
 		if (_.isUndefined(rtn.bubbleUp))
 			rtn.bubbleUp = data.bubbleUp;

@@ -59,7 +59,6 @@
 						letters: ['b','c']
 		};
 		Blocks.serializer.setValues(el, attrs);
-		console.log(el.html());
 
 		attrs = Blocks.serializer.serialize(el);
 		equal(attrs.firstName, 'Bob', 'Text field');

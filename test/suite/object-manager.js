@@ -116,7 +116,7 @@
 								foo : 'outer content <button class="btn1">non-handled button</button> <div class="sub-content"><button class="btn2">click me</button></div>'
 							},
 							init : function(options) {
-								this.addModel('foo', options.mock, {
+								this.addModel(options.mock, {
 									alias : 'sub-content',
 									handler : new ModelChangeHandler()
 								});
@@ -147,9 +147,9 @@
 				equal(!!view.clicked, false,
 						"Elements matched by event should not be enabled if outside of selector");
 				view.clicked = false;
-				var btn1 = view.$el.find('.btn1');
-				equal(btn1.size(), 1, "Verify btn2 existance");
-				btn1.click();
+				var btn2 = view.$el.find('.btn2');
+				equal(btn2.size(), 1, "Verify btn2 existance");
+				btn2.click();
 				equal(!!view.clicked, true,
 						"Element bindings filtered by selector should be enabled for handler");
 

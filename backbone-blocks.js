@@ -986,8 +986,15 @@
 				bindings : []
 			};
 			var bindings = options._data.bindings;
-			options.handler.options = options;
-			options.handler[type] = options[type];
+			if (options.handler) {
+				options.handler.options = options;
+				options.handler[type] = options[type];
+			} else {
+				// the object itself is the handler (aka: widget)
+				options.handler = options[type];
+				options.handler.options = _.defaults(options.handler.options || {}, options);
+			}
+
 			// if a selector property was provided, auto-set $el on the handler
 			// and update it as the parent renders itself
 			var parent = options.handler.parent = this.parent;
@@ -1006,11 +1013,12 @@
 			// initialize and allow auto-binding from the context object to the
 			// view
 			var initArgs = [ this.parent, object, options ];
-			if (this.parent === object) {
-				// special case, if context object is same as parent init with
-				// parent, options
+			if (this.parent === object || options.handler === object) {
+				// special case, if context object is same as parent (mixin)
+				// or if handler is the same as the object (widget)
 				initArgs = [ this.parent, options ];
-			} else if (options.bubbleUp) {
+			}
+			if (this.parent !== object && options.bubbleUp) {
 				// no need to bind parent event to itself
 				options._binder = this.eventProxy(options.alias, object);
 			}

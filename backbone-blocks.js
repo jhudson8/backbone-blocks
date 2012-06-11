@@ -5,6 +5,7 @@
 	var $window = $(window);
 
 	// package and base handler setup
+	var _widget = root.Widget = {};
 	var _handler = root.Handler = {};
 	var _template = root.Template = {};
 	var _content = root.Content = {};
@@ -18,6 +19,9 @@
 		}
 	};
 	_base.extend = Backbone.Model.extend;
+
+	_widget.Base = _base.extend({});
+	_.extend(_widget.Base.prototype, Backbone.Events);
 
 	/*****************************************************************************
 	 * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
@@ -618,6 +622,34 @@
 			// the mixin
 			this.objectManager.add('mixin', options);
 			return this;
+		},
+
+		/**
+		 * Add a widget. Parameters are (selector, widget, options) *or* (widget,
+		 * options)
+		 * 
+		 * A selector must be supplied (can be options.selector). If an alias is
+		 * provided, events will be bubbled up.
+		 */
+		addWidget : function(selector, widget, options) {
+			// selector, widget, options *or* widget, options
+			if (_.isString(selector)) {
+				options = options || {};
+				options.selector = selector;
+			} else {
+				options = widget;
+				widget = selector;
+				selector = undefined;
+			}
+			if (!options.selector) {
+				throw new Error('A widget must have a selector');
+			}
+			options.widget = widget;
+			if (options.alias) {
+				options.bubbleUp = true;
+			}
+			this.objectManager.add('widget', options);
+			return widget;
 		},
 
 		/**

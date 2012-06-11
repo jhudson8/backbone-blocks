@@ -1,9 +1,7 @@
-var moduleOptions = {
-		setup: function() {
-			Blocks.resetDefaults();
-		}
+QUnit.reset = function() {
+	Blocks.resetDefaults();
+	Blocks.templates = {};
 };
-Blocks.templates = {};
 
 var MockModel = Backbone.Model.extend({
 	mockFetching : function() {

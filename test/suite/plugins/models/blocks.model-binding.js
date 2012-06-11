@@ -1,5 +1,5 @@
 (function() {
-	module("Model Binding Handler", moduleOptions);
+	module("Model Binding Handler");
 
 	var View = Blocks.View
 			.extend({

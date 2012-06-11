@@ -1,5 +1,5 @@
 (function() {
-	module("Template Plugins", moduleOptions);
+	module("Template Plugins");
 
 	var model = {
 		firstName : 'Joe'

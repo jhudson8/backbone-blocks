@@ -1,5 +1,5 @@
 (function() {
-	module("Views", moduleOptions);
+	module("Views");
 
 	Blocks.templateEngine = new Blocks.Template.Handlebars();
 

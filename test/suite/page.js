@@ -1,5 +1,5 @@
 (function() {
-	module("Page", moduleOptions);
+	module("Page");
 
 	test("set view & default behavior", function() {
 		var leaving = false;

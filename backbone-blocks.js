@@ -81,7 +81,8 @@
 				}
 			}
 
-			// check all path options from a root which could contain the view template
+			// check all path options from a root which could contain the view
+			// template
 			function checkPaths(obj) {
 				if (obj) {
 					if (!pathParts) {
@@ -106,7 +107,7 @@
 				if (packageParts) {
 					var _root = navigate(root.templates, packageParts);
 					if (view) {
-						if (view && view.viewName) {
+						if (_root && view && view.viewName) {
 							_root = _root[view.viewName];
 						}
 						if (!path && _.isString(_root)) {
@@ -130,118 +131,189 @@
 		}
 	});
 
-	
 	/*****************************************************************************
 	 * FIELD SERIALIZATION & SYNCHRONIZATION
 	 ****************************************************************************/
 
 	/**
-	 * Default strategy to match DOM elements with model fields.  Requires a field
-	 * which has a name value which matches the model field attributes.  Any custom or composite
-	 * types can set a data-type attribute and will be ignored by the simple naming strategy.
+	 * Default strategy to match DOM elements with model fields. Requires a field
+	 * which has a name value which matches the model field attributes. Any custom
+	 * or composite types can set a data-type attribute and will be ignored by the
+	 * simple naming strategy.
 	 */
-	_field.SimpleNamingStragety = {
-			/**
-			 * Return the model field key for a DOM element or null if N/A
-			 * @param the DOM element
-			 */
-			getFieldKey: function(element) {
-				return element.getAttribute('name');
-			},
-
-			/**
-			 * Return the jquery selector for all elements associated with the field key
-			 * @param key the model field key
-			 * @param el the root jquery selector
-			 */
-			getElement : function(key, el) {
-				return el.find('[name="' + key + '"]');
-			},
-			
-			/**
-			 * Return an map of elements with key as model field key and value as single element or list of elements.  This
-			 * strategy will ignore all elements with a data-type attribute (assuming another naming strategy will override)
-			 * @param el the root jquery selector
-			 */
-			getElements : function(root) {
-				var elements = root.find('[name]');
-				var rtn = {};
-				elements.each(function(element, index) {
-					var name = element.getAttribute('name');
-					var el = rtn[name];
-					if (el && !element.getAttribute('data-type')) {
-						rtn[name] = [el, element];
-					} else {
-						rtn[name] = element;
-					}
-				});
-				return rtn;
+	_field.SimpleNamingStrategy = _base.extend({
+		setOptions : function(options) {
+			if (options) {
+				this.dataType = options.dataType;
+				this.useDataName = options.useDataName;
 			}
-	};
+		},
+
+		/**
+		 * Return the model field key for a DOM element or null if N/A
+		 * 
+		 * @param element the
+		 *          DOM element
+		 */
+		getFieldKey : function(element) {
+			if (this.useDataName) {
+				return element.getAttribute('data-name');
+			} else {
+				return element.getAttribute('name');
+			}
+		},
+
+		/**
+		 * Return the jquery selector for all elements associated with the field key
+		 * 
+		 * @param key
+		 *          the model field key
+		 * @param el
+		 *          the root jquery selector
+		 */
+		getElement : function(key, el) {
+			var rtn;
+			if (this.useDataName) {
+				rtn = el.find('[data-name="' + key + '"]');
+			} else {
+				rtn = el.find('[name="' + key + '"]');
+			}
+			if (this.dataType) {
+				rtn = rtn.filter('[data-type="' + this.dataType + '"]');
+			} else {
+				rtn = rtn.filter(':not([data-type])');
+			}
+			return rtn;
+		},
+
+		/**
+		 * Return an map of elements with key as model field key and value as single
+		 * element or list of elements. This strategy will ignore all elements with
+		 * a data-type attribute (assuming another naming strategy will override)
+		 * 
+		 * @param root
+		 *          the root jquery selector
+		 */
+		getElements : function(root) {
+			var elements;
+			if (this.dataType) {
+				elements = root.find('[data-type="' + this.dataType + '"]');
+			} else {
+				elements = root.find('[name]');
+			}
+			var rtn = {},
+					_this = this;;
+			elements.each(function(index, element) {
+				if (!_this.dataType && element.getAttribute('data-type')) {
+					return;
+				}
+				var key = _this.getFieldKey(element);
+				var el = rtn[key];
+				if (el) {
+					el.push(element);
+				} else {
+					rtn[key] = [ element ];
+				}
+			});
+			return rtn;
+		}
+	});
 
 	/**
 	 * Default handler for serializing and mapping field input values
 	 */
-	_field.SimpleInputHandler = {
-
-			/**
-			 * Serialize a single input field
-			 * @param key the attributes map key
-			 * @param element the single DOM element
-			 * @param attr the attributes hash
-			 */
-			serializeField : function(element) {
-				var el = $(element);
-				var type = el.attr('type');
-				var val = el.val();
-				if (type === 'checkbox') {
-					return !!element.checked;
-				} else if (type === 'radio' && (val === 'true' || val === 'false')) {
-					return !!(val === 'true');
-				} else {
-					return val;
-				}
-			},
+	_field.SimpleInputHandler = _base.extend({
 
 		/**
-		 * Serialize the input(s) represented by the element(s) to the attributes map using the provided key
-		 * @param key the attributes map key
-		 * @param element element or list of elements
-		 * @param attr the attributes hash
+		 * Serialize a single input field
+		 * 
+		 * @param key
+		 *          the attributes map key
+		 * @param element
+		 *          the single DOM element
+		 * @param attr
+		 *          the attributes hash
 		 */
-		serialize : function(key, element, attr) {
+		serializeField : function(element) {
+			var el = $(element);
+			var type = el.attr('type');
+			var val = el.val();
+			if (type === 'checkbox') {
+				return !!element.checked;
+			} else if (type === 'radio') {
+				if (element.checked) {
+					if (isIn(val, Blocks.Defaults.trueValues) || isIn(val, Blocks.Defaults.falseValues)) {
+						return isIn(val, Blocks.Defaults.trueValues);
+					} else {
+						return val;
+					}
+				}
+			} else {
+				return val;
+			}
+		},
+
+		/**
+		 * Serialize the input(s) represented by the element(s) to the attributes
+		 * map using the provided key
+		 * 
+		 * @param key
+		 *          the attributes map key
+		 * @param elements
+		 *          array of DOM elements returned by naming strategy for this field (could be a single)
+		 * @param attr
+		 *          the attributes hash
+		 */
+		serialize : function(key, elements, attr) {
 			attr = attr || {};
-			element.each(_.bind(function(index, element) {
-				this.serializeField(element);
-			}, this));
+			var _this = this;
+			_.each(elements, function(element) {
+				var val = _this.serializeField(element);
+				if (!_.isUndefined(val)) {
+					attr[key] = val;
+				}
+			});
 			return attr;
 		},
 
 		/**
 		 * Set the element(s) value using the provided value
-		 * @param key the model field key
-		 * @param value the value to set
-		 * @param el the jquery/zepto wrapped element selection
+		 * 
+		 * @param key
+		 *          the model field key
+		 * @param value
+		 *          the value to set
+		 * @param el
+		 *          the jquery/zepto wrapped element selection
 		 */
 		setElementValue : function(key, value, el) {
 			var size = el.length;
 			if (!size || _.isUndefined(value))
 				return;
 			
+			var tVals = Blocks.Defaults.trueValues;
+			var fVals = Blocks.Defaults.falseValues;
+
 			// boolean representing on/off values for checkbox or radio
 			if (_.isBoolean(value)) {
 				el.each(function(index, element) {
-					var eVal = element.getAttribute('value');
-					if ((value && eVal === 'true') || (!value && eVal === 'false')) {
-						element.checked = true;
+					var type = element.getAttribute('type').toLowerCase();
+					var eVal = element.value;
+					if (type == 'checkbox') {
+							element.checked = value;
 					} else {
-						element.checked = false;
+						// radio buttons
+						if ((value && isIn(eVal, tVals)) || (!value && isIn(eVal, fVals))) {
+							element.checked = true;
+						} else {
+							element.checked = false;
+						}
 					}
 				});
 				return true;
 			}
-			
-			function setString (stringVal, el) {
+
+			function setString(stringVal, el) {
 				var type = (el.attr('type') || 'text').toLowerCase();
 				if (type === 'checkbox' || type == 'radio') {
 					if (stringVal === el.val()) {
@@ -267,27 +339,36 @@
 			}
 			return false;
 		}
-	};
+	});
 
 	/**
-	 * Constructor can either be a list of or a single hash containing 'namingStrategy' and 'inputHandler'
+	 * Constructor can either be a list of or a single hash containing
+	 * 'namingStrategy' and 'inputHandler'
 	 */
+	var _defaultNamingStrategy = new _field.SimpleNamingStrategy();
+	var _defaultInputHandler = new _field.SimpleInputHandler();
 	_field.Serializer = _base.extend({
-		setOptions: function(options) {
+		setOptions : function(options) {
 			if (!options) {
-				this.entries = [{
-					namingStrategy: _field.SimpleNamingStragety,
-					inputHandler: _field.SimpleInputHandler
-				}];
+				this.entries = [ {
+					namingStrategy : _defaultNamingStrategy,
+					inputHandler : _defaultInputHandler
+				} ];
 			} else if (_.isArray(options)) {
 				this.entries = options;
 			} else {
-				this.entries = [options];
+				this.entries = [ options ];
 			}
 		},
 
-		serializeField: function(el) {
-			for (var i=0; i<this.entries.length; i++) {
+		// should be {namingStrategy: x, inputHandler: x}
+		add: function (options) {
+			this.entries.push(options);
+			return this;
+		},
+
+		serializeField : function(el) {
+			for ( var i = 0; i < this.entries.length; i++) {
 				var entry = this.entries[i];
 				var key = entry.namingStrategy.getFieldKey(el);
 				if (key) {
@@ -296,19 +377,18 @@
 						var rtn = {};
 						rtn[key] = val;
 						return rtn;
-					}
-					else {
+					} else {
 						return;
 					}
 				}
 			}
 		},
 
-		serialize: function(root, attr) {
+		serialize : function(root, attr) {
 			attr = attr || {};
 			_.each(this.entries, function(entry) {
-				var elements = entry.namingStragety.getElements(root);
-				for (var name in elements) {
+				var elements = entry.namingStrategy.getElements(root);
+				for ( var name in elements) {
 					var _elements = elements[name];
 					entry.inputHandler.serialize(name, _elements, attr);
 				}
@@ -316,19 +396,19 @@
 			return attr;
 		},
 
-		setValues: function(root, model) {
+		setValues : function(root, model) {
 			if (model instanceof Backbone.Model) {
 				model = model.attributes;
 			}
 			_.each(this.entries, function(entry) {
-				for (var key in model) {
+				for ( var key in model) {
 					var el = entry.namingStrategy.getElement(key, root);
 					entry.inputHandler.setElementValue(key, model[key], $(el));
 				}
 			});
 		}
 	});
-	
+
 	/*****************************************************************************
 	 * DEFAULT MODEL, COLLECTION SUBVIEW HANDLER
 	 ****************************************************************************/
@@ -477,7 +557,8 @@
 
 			this.templateEngine = root.templateEngine;
 			this.contentProvider = root.contentProvider;
-			if (this.serializer) this.serializer = Blocks.serializer;
+			if (this.serializer)
+				this.serializer = Blocks.serializer;
 			this.objectManager = new root.Defaults.objectManagerClass(this);
 
 			if (options && options.model && root.Defaults.autoAddModel) {
@@ -608,7 +689,7 @@
 			});
 		},
 
-		serialize: function(el) {
+		serialize : function(el) {
 			return this.serializer.serialize(el || this.$el);
 		},
 
@@ -744,23 +825,23 @@
 		};
 	});
 
-	
 	/*****************************************************************************
 	 * PAGE
 	 ****************************************************************************/
 	/**
-	 * The page is a special view that is used to transition to different views.  This is the main
-	 * dynamic portion of the application.  Unless the secondary=true options is provided, the page
-	 * will be available as Blocks.page. 
+	 * The page is a special view that is used to transition to different views.
+	 * This is the main dynamic portion of the application. Unless the
+	 * secondary=true options is provided, the page will be available as
+	 * Blocks.page.
 	 */
 	root.Page = root.View.extend({
-		
+
 		/**
-		 * Init optoins:
-		 * 	pageEl: optional sub selector within the page el (otherwise page el is used)
-		 *  secondary: by default, Blocks.page will be set as this page *unless* 'secondary' is truthy
+		 * Init optoins: pageEl: optional sub selector within the page el (otherwise
+		 * page el is used) secondary: by default, Blocks.page will be set as this
+		 * page *unless* 'secondary' is truthy
 		 */
-		init: function(options) {
+		init : function(options) {
 			this.pageEl = options.pageEl ? this.$(options.pageEl) : this.$el;
 			if (!options.secondary) {
 				root.page = this;
@@ -768,10 +849,11 @@
 		},
 
 		/**
-		 * Transition to a new view.  The leaving view will trigger 'leaving' and 'left' events.
-		 * The incoming view will trigger the 'transitioning' and 'transitioned' events.
+		 * Transition to a new view. The leaving view will trigger 'leaving' and
+		 * 'left' events. The incoming view will trigger the 'transitioning' and
+		 * 'transitioned' events.
 		 */
-		setView: function(view, options) {
+		setView : function(view, options) {
 			options = options || {};
 			if (this.currentView) {
 				this.trigger('leaving', this.currentView, options);
@@ -787,16 +869,17 @@
 			}, this);
 			options.success = success;
 			var transition = this.getTransition(this.pageEl, view, this.currentView, options);
-			
+
 			this.trigger('transitioning', view, options);
 			view.render();
 			transition();
 		},
-	
+
 		/**
-		 * Return a transition function which will be used to replace the old view with the new view
+		 * Return a transition function which will be used to replace the old view
+		 * with the new view
 		 */
-		getTransition: function(root, view, previousView, options) {
+		getTransition : function(root, view, previousView, options) {
 			return function() {
 				root.html('');
 				root.append(view.$el);
@@ -804,10 +887,10 @@
 			};
 		},
 
-		render: function() {}
+		render : function() {
+		}
 	});
-	
-	
+
 	/*****************************************************************************
 	 * MANAGED OBJECTS
 	 ****************************************************************************/
@@ -1242,6 +1325,13 @@
 		}
 	}
 
+	function isIn(val, arr) {
+		for (var i=0; i<arr.length; i++) {
+			if (val === arr[i]) return true;
+		}
+		return false;
+	}
+
 	// setup plugin packages
 	_handler.Collection = {};
 	_handler.Model = {};
@@ -1267,7 +1357,9 @@
 			autoAddCollection : true,
 			bubbleCollectionEvents : false,
 			bubbleModelEvents : false,
-			bubbleViewEvents : false
+			bubbleViewEvents : false,
+			trueValues: ['true', 'on'],
+			falseValues: ['false', 'off'],
 		};
 	};
 	root.resetDefaults();

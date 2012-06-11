@@ -1,16 +1,16 @@
 (function() {
-	module("Hash Content Provider", moduleOptions);
-
-	var provider = new Blocks.Content.HashProvider();
-	Blocks.templates = {
-		foo : 'global template',
-		example : {
-			foo : 'package template'
-		}
-	}
+	module("Hash Content Provider");
 
 	test("View-based templates", function() {
 
+		var provider = new Blocks.Content.HashProvider();
+		Blocks.templates = {
+			foo : 'global template',
+			example : {
+				foo : 'package template'
+			}
+		};
+		
 		var view = {
 			viewPackage : 'example',
 			viewName : 'foo',
@@ -19,7 +19,7 @@
 				template : 'default view template'
 			}
 
-		}
+		};
 
 		equal(provider.get(undefined, view), view.templates.foo,
 				'1st check: {view}.templates.{view name}');

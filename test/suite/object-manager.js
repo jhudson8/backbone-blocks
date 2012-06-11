@@ -1,5 +1,5 @@
 (function() {
-	module("Object Manager", moduleOptions);
+	module("Object Manager");
 
 	var ModelChangeHandler = function() {
 	};

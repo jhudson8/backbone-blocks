@@ -42,22 +42,18 @@
 		var parent = {};
 		var mgr = new Blocks.ObjectManager(parent);
 		mgr.add('foo', {
-			alias : '1',
 			foo : {},
 			handler : new handler(true)
 		});
 		mgr.add('foo', {
-			alias : '2',
 			foo : {},
 			handler : new handler("test")
 		});
 		mgr.add('bar', {
-			alias : '1',
 			bar : {},
 			handler : new handler(0)
 		});
 		mgr.add('bar', {
-			alias : '2',
 			bar : {},
 			handler : new handler(false)
 		});
@@ -189,7 +185,7 @@
 		view.addModel(model, {
 			handler : handler
 		});
-		equal(handler.options._data.bindings.length, 2);
+		equal(handler.options._data.bindings.length, 3);
 		_.each(handler.options._data.bindings, function(binding) {
 			binding.destroy = function() {
 				this.isDestroyed = true;

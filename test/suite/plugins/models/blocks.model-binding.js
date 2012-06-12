@@ -39,10 +39,10 @@
 					sel6 : 'c',
 					ta7 : 'bar'
 				});
-				var view = new View({
-					model : model
-				});
+				var view = new View();
+				view.addModel('.model', model);
 				view.render();
+				console.log(view.$el.html());
 				equal(view.$el.find('#l0').html(), 'test label',
 						"model in template context rendering");
 				equal(view.$el.find('#t1').val(), 'foo', "standard text field");
@@ -84,9 +84,8 @@
 					sel6 : 'c',
 					ta7 : 'bar'
 				});
-				var view = new View({
-					model : model
-				});
+				var view = new View();
+				view.addModel('.model', model);
 				view.render();
 				model.set({
 					txt1 : 'bar',
@@ -136,9 +135,8 @@
 			sel6 : 'c',
 			ta7 : 'bar'
 		});
-		var view = new View({
-			model : model
-		});
+		var view = new View();
+		view.addModel('.model', model);
 		view.render();
 		view.$el.find('#t1').val('bar').change();
 		view.$el.find('#t2').removeAttr('checked').change();
@@ -175,9 +173,8 @@
 		var model = new ValidModel({
 			txt1 : 'food'
 		});
-		var view = new View({
-			model : model
-		});
+		var view = new View();
+		view.addModel('.model', model);
 		var validationError;
 		view.bind('fieldError', function(error) {
 			validationError = error;

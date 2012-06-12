@@ -2,6 +2,7 @@
 	var root = env.Blocks = {};
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
+	var specialSelectorPattern = /^[\.#](^\s)*/;
 	var $window = $(window);
 
 	// package and base handler setup
@@ -426,7 +427,7 @@
 	_handler.ModelContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var model = this.options[this.options._data.type];
-			if (this.options.alias === root.Defaults.modelAlias) {
+			if (!this.options.alias) {
 				// single model, go straight to attributes
 				_.defaults(context, model.attributes);
 			} else {
@@ -442,7 +443,7 @@
 	_handler.CollectionContextContributor = _handler.Base.extend({
 		parentContext : function(context) {
 			var collection = this.options[this.options._data.type];
-			context[this.options.alias] = collection.models;
+			context[this.options.alias || 'collection'] = collection.models;
 		}
 	});
 
@@ -645,9 +646,6 @@
 				throw new Error('A widget must have a selector');
 			}
 			options.widget = widget;
-			if (options.alias) {
-				options.bubbleUp = true;
-			}
 			this.objectManager.add('widget', options);
 			return widget;
 		},
@@ -660,18 +658,16 @@
 		 */
 		addView : function() {
 			var options = this.viewOptions.apply(this, arguments);
-			return this.objectManager.add(root.Defaults.viewAlias, options);
+			return this.objectManager.add('view', options);
 		},
 
 		viewOptions : function() {
 			return populateOptions({
 				arguments : arguments,
-				type : root.Defaults.viewAlias,
+				type : 'view',
 				objectClass : Backbone.View,
-				alias : root.Defaults.viewAlias,
 				handlerClass : root.Defaults.viewHandlerClass,
-				addSelector : true,
-				bubbleUp : root.Defaults.bubbleViewEvents
+				addSelector : true
 			});
 		},
 
@@ -683,18 +679,16 @@
 		 */
 		addCollection : function() {
 			var options = this.collectionOptions.apply(this, arguments);
-			return this.objectManager.add(Blocks.Defaults.collectionAlias, options);
+			return this.objectManager.add('collection', options);
 		},
 
 		collectionOptions : function() {
 			return populateOptions({
 				arguments : arguments,
-				type : Blocks.Defaults.collectionAlias,
+				type : 'collection',
 				objectClass : Backbone.Collection,
-				alias : Blocks.Defaults.collectionAlias,
 				handlerClass : Blocks.Defaults.collectionHandlerClass,
-				addSelector : true,
-				bubbleUp : Blocks.Defaults.bubbleCollectionEvents
+				addSelector : true
 			});
 		},
 
@@ -706,18 +700,16 @@
 		 */
 		addModel : function() {
 			var options = this.modelOptions.apply(this, arguments);
-			return this.objectManager.add(Blocks.Defaults.modelAlias, options);
+			return this.objectManager.add('model', options);
 		},
 
 		modelOptions : function() {
 			return populateOptions({
 				arguments : arguments,
-				type : Blocks.Defaults.modelAlias,
+				type : 'model',
 				objectClass : Backbone.Model,
-				alias : Blocks.Defaults.modelAlias,
 				handlerClass : Blocks.Defaults.modelHandlerClass,
-				addSelector : true,
-				bubbleUp : this.bubbleUpEvents
+				addSelector : true
 			});
 		},
 
@@ -963,21 +955,16 @@
 		},
 
 		add : function(type, options) {
+			var l = this.managedObjects[type];
+			if (!l) {
+				l = this.managedObjects[type] = [];
+			}
 			if (options.alias) {
-				var l = this.managedObjects[type];
-				if (!l) {
-					l = this.managedObjects[type] = [];
-				}
 				for ( var i = 0; i < l.length; i++) {
 					if (l[i].alias === options.alias) {
-						// remove the previous
-						l[i].destroy();
-						break;
+						throw new Error('Can not add managed object with already used alias "' + options.alias + '"');
 					}
 				}
-			} else {
-				// give it a unique alias
-				options.alias = _.uniqueId('_' + type + '-');
 			}
 
 			// initialize options
@@ -1018,8 +1005,8 @@
 				// or if handler is the same as the object (widget)
 				initArgs = [ this.parent, options ];
 			}
-			if (this.parent !== object && options.bubbleUp) {
-				// no need to bind parent event to itself
+		  // no need to bind parent event to itself
+			if (this.parent !== object && options.alias) {
 				options._binder = this.eventProxy(options.alias, object);
 			}
 			options.handler.init && options.handler.init.apply(options.handler, initArgs);
@@ -1027,7 +1014,6 @@
 			// auto-bind all 'event' references from the handler
 			var events = flatten(options.handler.events);
 			if (events) {
-				var bindings = [];
 				for (name in events) {
 					var method = getMethod(events[name], options.handler);
 					bindings.push(this.bindEvent(name, method, object, options.handler, options) || {});
@@ -1317,7 +1303,15 @@
 			// allow for (alias, object[, options]) or (options)
 			if (_.isString(data.arguments[0])) {
 				rtn = data.arguments[2] || {};
-				rtn.alias = data.arguments[0];
+				var aliasOrSelector = data.arguments[0];
+				var match = aliasOrSelector.match(specialSelectorPattern);
+				if (match) {
+					// was a selector - don't auto-create an alias
+					rtn.selector = aliasOrSelector;
+					if (_.isUndefined(rtn.alias)) rtn.alias = false;
+				} else {
+					rtn.alias = aliasOrSelector;
+				}
 				rtn[data.type] = data.arguments[1];
 			} else {
 				rtn = data.arguments[0];
@@ -1325,12 +1319,10 @@
 		}
 		if (!rtn.handler)
 			rtn.handler = new data.handlerClass();
-		if (!rtn.alias)
+		if (_.isUndefined(rtn.alias))
 			rtn.alias = data.alias;
 		if (data.addSelector && _.isUndefined(rtn.selector))
 			rtn.selector = root.Defaults.selectorGenerator(rtn);
-		if (_.isUndefined(rtn.bubbleUp))
-			rtn.bubbleUp = data.bubbleUp;
 		return rtn;
 	}
 
@@ -1389,17 +1381,12 @@
 			collectionHandlerClass : _handler.CollectionContextContributor,
 			viewHandlerClass : _handler.SimpleSubView,
 			modelAlias : 'model',
-			collectionAlias : 'collection',
-			viewAlias : 'view',
 			containerCssClass : 'blk-container',
 			selectorGenerator : function(options) {
 				return '.' + options.alias;
 			},
 			autoAddModel : true,
 			autoAddCollection : true,
-			bubbleCollectionEvents : false,
-			bubbleModelEvents : false,
-			bubbleViewEvents : false,
 			trueValues: ['true', 'on'],
 			falseValues: ['false', 'off'],
 		};

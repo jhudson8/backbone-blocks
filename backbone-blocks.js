@@ -1311,6 +1311,9 @@
 					if (_.isUndefined(rtn.alias)) rtn.alias = false;
 				} else {
 					rtn.alias = aliasOrSelector;
+					if (data.addSelector) {
+						rtn.selector = Blocks.Defaults.selectorGenerator(rtn);
+					}
 				}
 				rtn[data.type] = data.arguments[1];
 			} else {

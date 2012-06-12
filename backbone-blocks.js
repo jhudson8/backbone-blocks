@@ -157,8 +157,8 @@
 		/**
 		 * Return the model field key for a DOM element or null if N/A
 		 * 
-		 * @param element the
-		 *          DOM element
+		 * @param element
+		 *          the DOM element
 		 */
 		getFieldKey : function(element) {
 			if (this.useDataName) {
@@ -206,8 +206,8 @@
 			} else {
 				elements = root.find('[name]');
 			}
-			var rtn = {},
-					_this = this;;
+			var rtn = {}, _this = this;
+			;
 			elements.each(function(index, element) {
 				if (!_this.dataType && element.getAttribute('data-type')) {
 					return;
@@ -265,7 +265,8 @@
 		 * @param key
 		 *          the attributes map key
 		 * @param elements
-		 *          array of DOM elements returned by naming strategy for this field (could be a single)
+		 *          array of DOM elements returned by naming strategy for this field
+		 *          (could be a single)
 		 * @param attr
 		 *          the attributes hash
 		 */
@@ -295,7 +296,7 @@
 			var size = el.length;
 			if (!size || _.isUndefined(value))
 				return;
-			
+
 			var tVals = Blocks.Defaults.trueValues;
 			var fVals = Blocks.Defaults.falseValues;
 
@@ -305,7 +306,7 @@
 					var type = element.getAttribute('type').toLowerCase();
 					var eVal = element.value;
 					if (type == 'checkbox') {
-							element.checked = value;
+						element.checked = value;
 					} else {
 						// radio buttons
 						if ((value && isIn(eVal, tVals)) || (!value && isIn(eVal, fVals))) {
@@ -367,7 +368,7 @@
 		},
 
 		// should be {namingStrategy: x, inputHandler: x}
-		add: function (options) {
+		add : function(options) {
 			this.entries.push(options);
 			return this;
 		},
@@ -962,7 +963,8 @@
 			if (options.alias) {
 				for ( var i = 0; i < l.length; i++) {
 					if (l[i].alias === options.alias) {
-						throw new Error('Can not add managed object with already used alias "' + options.alias + '"');
+						throw new Error('Can not add managed object with already used alias "' + options.alias
+										+ '"');
 					}
 				}
 			}
@@ -1005,7 +1007,7 @@
 				// or if handler is the same as the object (widget)
 				initArgs = [ this.parent, options ];
 			}
-		  // no need to bind parent event to itself
+			// no need to bind parent event to itself
 			if (this.parent !== object && options.alias) {
 				options._binder = this.eventProxy(options.alias, object);
 			}
@@ -1085,22 +1087,18 @@
 					var parent = this.parent;
 					var _selector = options.selector ? options.selector + ' ' + parts[1] : parts[1];
 					parent.$el.delegate(_selector, parts[0], bound);
-					return {
-						destroy : function() {
-							parent.$el.undelegate(parts[1], parts[0], bound);
-						}
+					return function() {
+						parent.$el.undelegate(parts[1], parts[0], bound);
 					};
 				}
 			}
 
 			target.on(event, bound);
 
-			return {
-				destroy : function() {
-					target.off(event, bound);
-					if (loadedCallback) {
-						object.off('fetched', loadedCallback);
-					}
+			return function() {
+				target.off(event, bound);
+				if (loadedCallback) {
+					object.off('fetched', loadedCallback);
 				}
 			};
 		},
@@ -1201,7 +1199,7 @@
 				_.each(this.managedObjects[type], function(obj) {
 					if (obj._data.bindings) {
 						_.each(obj._data.bindings, function(binding) {
-							binding.destroy && binding.destroy();
+							binding && binding();
 						});
 					}
 					obj.handler.destroy && obj.handler.destroy();
@@ -1308,7 +1306,8 @@
 				if (match) {
 					// was a selector - don't auto-create an alias
 					rtn.selector = aliasOrSelector;
-					if (_.isUndefined(rtn.alias)) rtn.alias = false;
+					if (_.isUndefined(rtn.alias))
+						rtn.alias = false;
 				} else {
 					rtn.alias = aliasOrSelector;
 					if (data.addSelector) {
@@ -1363,8 +1362,9 @@
 	}
 
 	function isIn(val, arr) {
-		for (var i=0; i<arr.length; i++) {
-			if (val === arr[i]) return true;
+		for ( var i = 0; i < arr.length; i++) {
+			if (val === arr[i])
+				return true;
 		}
 		return false;
 	}
@@ -1390,8 +1390,8 @@
 			},
 			autoAddModel : true,
 			autoAddCollection : true,
-			trueValues: ['true', 'on'],
-			falseValues: ['false', 'off'],
+			trueValues : [ 'true', 'on' ],
+			falseValues : [ 'false', 'off' ],
 		};
 	};
 	root.resetDefaults();

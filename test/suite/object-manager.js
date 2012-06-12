@@ -99,72 +99,71 @@
 	});
 
 	test(
-			"events",
-			function() {
+					"events",
+					function() {
 
-				var model = new MockModel();
-				model.mockFetching();
+						var model = new MockModel();
+						model.mockFetching();
 
-				var View = Blocks.View
-						.extend({
-							viewName : 'foo',
-							templates : {
-								foo : 'outer content <button class="btn1">non-handled button</button> <div class="sub-content"><button class="btn2">click me</button></div>'
-							},
-							init : function(options) {
-								this.addModel(options.mock, {
-									alias : 'sub-content',
-									handler : new ModelChangeHandler()
-								});
+						var View = Blocks.View
+										.extend({
+											viewName : 'foo',
+											templates : {
+												foo : 'outer content <button class="btn1">non-handled button</button> <div class="sub-content"><button class="btn2">click me</button></div>'
+											},
+											init : function(options) {
+												this.addModel(options.mock, {
+													alias : 'sub-content',
+													handler : new ModelChangeHandler()
+												});
 
-							}
+											}
+										});
+
+						var view = new View({
+							mock : model
 						});
+						equal(!!view.event2, false, "Initial state: event2");
+						equal(!!view.event3, false, "Initial state: event3");
 
-				var view = new View({
-					mock : model
-				});
-				equal(!!view.event2, false, "Initial state: event2");
-				equal(!!view.event3, false, "Initial state: event3");
+						view.render();
+						equal(!!view.loadedRender, false, "Deferred render-bound handler event hasn't fired");
+						model.mockFetched();
+						equal(!!view.loadedRender, true,
+										"Render-bound event binding only runs after rendering and loaded object");
+						model.trigger('foo:event2');
+						equal(!!view.event2, true, "Testing 2 level event hierarchy");
+						model.trigger('foo:bar:event3');
+						equal(!!view.event3, true, "Testing 3 level event hierarchy");
 
-				view.render();
-				equal(!!view.loadedRender, false,
-						"Deferred render-bound handler event hasn't fired");
-				model.mockFetched();
-				equal(!!view.loadedRender, true,
-						"Render-bound event binding only runs after rendering and loaded object");
-				model.trigger('foo:event2');
-				equal(!!view.event2, true, "Testing 2 level event hierarchy");
-				model.trigger('foo:bar:event3');
-				equal(!!view.event3, true, "Testing 3 level event hierarchy");
+						var btn1 = view.$el.find('.btn1');
+						equal(btn1.size(), 1, "Verify btn1 existance");
+						btn1.click();
+						equal(!!view.clicked, false,
+										"Elements matched by event should not be enabled if outside of selector");
+						view.clicked = false;
+						var btn2 = view.$el.find('.btn2');
+						equal(btn2.size(), 1, "Verify btn2 existance");
+						btn2.click();
+						equal(!!view.clicked, true,
+										"Element bindings filtered by selector should be enabled for handler");
 
-				var btn1 = view.$el.find('.btn1');
-				equal(btn1.size(), 1, "Verify btn1 existance");
-				btn1.click();
-				equal(!!view.clicked, false,
-						"Elements matched by event should not be enabled if outside of selector");
-				view.clicked = false;
-				var btn2 = view.$el.find('.btn2');
-				equal(btn2.size(), 1, "Verify btn2 existance");
-				btn2.click();
-				equal(!!view.clicked, true,
-						"Element bindings filtered by selector should be enabled for handler");
+						equal(view.resized, undefined, 'Window has not been resized');
+						$(window).resize();
+						equal(view.resized, true, 'Window has been resized');
+						view.resized = false;
 
-				equal(view.resized, undefined, 'Window has not been resized');
-				$(window).resize();
-				equal(view.resized, true, 'Window has been resized');
-				view.resized = false;
+						view.destroy();
+						$(window).resize();
+						equal(view.resized, false, 'Window has been resized but we did');
 
-				view.destroy();
-				$(window).resize();
-				equal(view.resized, false, 'Window has been resized but we did');
-
-				view.event2 = false;
-				view.event3 = false;
-				model.trigger('foo:event2');
-				equal(!!view.event2, false, "Model binding is off after destroy");
-				model.trigger('foo:bar:event3');
-				equal(!!view.event3, false, "Model binding is off after destroy (another)");
-			});
+						view.event2 = false;
+						view.event3 = false;
+						model.trigger('foo:event2');
+						equal(!!view.event2, false, "Model binding is off after destroy");
+						model.trigger('foo:bar:event3');
+						equal(!!view.event3, false, "Model binding is off after destroy (another)");
+					});
 
 	test("destroy", function() {
 		var view = new Blocks.View();
@@ -186,15 +185,14 @@
 			handler : handler
 		});
 		equal(handler.options._data.bindings.length, 3);
-		_.each(handler.options._data.bindings, function(binding) {
-			binding.destroy = function() {
-				this.isDestroyed = true;
+		var destroyCount = 0;
+		for ( var i = 0; i < handler.options._data.bindings.length; i++) {
+			handler.options._data.bindings[i] = function() {
+				destroyCount++;
 			};
-		});
+		}
 		view.destroy();
 		equal(destroyed, true);
-		_.each(handler.options._data.bindings, function(binding) {
-			equal(binding.isDestroyed, true);
-		});
+		equal(destroyCount, 3);
 	});
 })();

@@ -560,6 +560,7 @@
 		 */
 		initialize : function(options) {
 			this._bindings = [];
+			this._toClean = [];
 
 			this.templateEngine = root.templateEngine;
 			this.contentProvider = root.contentProvider;
@@ -734,10 +735,20 @@
 		},
 
 		/**
+		 * Add a callback that will be executed when the view is destroyed
+		 */
+		cleanUp : function(callback) {
+			this._toClean.push(callback);
+		},
+		
+		/**
 		 * destroy all sub-views and unbind all custom bindings
 		 */
 		destroy : function() {
 			this.trigger('destroying');
+			_.each(this._toClean, function(callback) {
+				callback && callback();
+			});
 			this.undelegateEvents();
 			this.objectManager.destroy();
 			delete this.objectManager;
@@ -982,6 +993,13 @@
 				// the object itself is the handler (aka: widget)
 				options.handler = options[type];
 				options.handler.options = _.defaults(options.handler.options || {}, options);
+			}
+
+			// provide a cleanup method
+			if (!options.handler.cleanUp) {
+				options.handler.cleanUp = function(callback) {
+					bindings.push(callback);
+				};
 			}
 
 			// if a selector property was provided, auto-set $el on the handler

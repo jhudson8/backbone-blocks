@@ -17,6 +17,7 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 		this.model = model;
 		this._bound = _.bind(this.modelChanged, this);
 		model.on('change', this._bound);
+		this.cleanUp(function() {model.off('change', this._bound);});
 	},
 
 	rendered : function() {
@@ -61,10 +62,5 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 			}
 		}
 		return true;
-				
-	},
-
-	destroy : function() {
-		model.off('change', this._bound);
 	}
 });

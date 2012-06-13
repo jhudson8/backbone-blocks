@@ -13,6 +13,7 @@
 	var _template = root.Template = {};
 	var _content = root.Content = {};
 	var _field = _handler.Field = {};
+	var _util = root.Util = {};
 	root.Mixin = {};
 
 	var _base = _handler.Base = function(options) {
@@ -766,7 +767,7 @@
 		 * 'foo:bar': 'abc', foo: { bar: 'abc' } }
 		 */
 		delegateEvents : function(events) {
-			events = flatten(_.defaults(events || {}, getValue(this, 'events')));
+			events = flatten(_.defaults(events || {}, _util.getValue(this, 'events')));
 			if (!events)
 				return;
 			this.undelegateEvents(true);
@@ -1414,6 +1415,18 @@
 		};
 	}
 
+	
+	/**************************************************************
+	 * UTILITY METHODS
+	 *************************************************************/
+	
+	_util.getValue = function(object, prop) {
+		if (!(object && object[prop]))
+			return null;
+		return _.isFunction(object[prop]) ? object[prop]() : object[prop];
+	};
+	
+	
 	// PRIVATE CLASSES AND METHODS //
 	function EventProxy(alias, context) {
 		return function(event) {
@@ -1421,12 +1434,6 @@
 			args[0] = alias + ':' + event;
 			context.trigger.apply(context, args);
 		};
-	}
-
-	function getValue(object, prop) {
-		if (!(object && object[prop]))
-			return null;
-		return _.isFunction(object[prop]) ? object[prop]() : object[prop];
 	}
 
 	function flatten(object) {

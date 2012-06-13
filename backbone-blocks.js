@@ -1,5 +1,6 @@
 (function(env) {
 	var root = env.Blocks = {};
+	_.extend(root, Backbone.Events);
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
 	var specialSelectorPattern = /^[\.#](^\s)*/;
@@ -7,15 +8,17 @@
 
 	// package and base handler setup
 	var _widget = root.Widget = {};
+	var _loader = root.Loader = {};
 	var _handler = root.Handler = {};
 	var _template = root.Template = {};
 	var _content = root.Content = {};
 	var _field = _handler.Field = {};
+	root.Mixin = {};
 
 	var _base = _handler.Base = function(options) {
 		if (this.setOptions) {
-			this.setOptions(options);
-		} else {
+			this.setOptions.apply(this, arguments);
+		} else if (arguments.length === 1) {
 			this.options = options;
 		}
 	};
@@ -740,7 +743,7 @@
 		cleanUp : function(callback) {
 			this._toClean.push(callback);
 		},
-		
+
 		/**
 		 * destroy all sub-views and unbind all custom bindings
 		 */
@@ -928,6 +931,134 @@
 	});
 
 	/*****************************************************************************
+	 * ROUTER
+	 ****************************************************************************/
+
+	root.Router = Backbone.Router.extend({
+		initialize : function(options) {
+			this.modules = this.modules || options && options.modules;
+			if (this.modules) {
+				for ( var name in this.modules) {
+					this.addModule(name, this.modules[name]);
+				}
+			}
+
+			this.init && this.init();
+		},
+
+		addModule : function(name, data, options) {
+			this.loadedModules = this.loadedModules || {};
+			var loader = new root.moduleLoaderClass(name, data, options);
+			var callback = this.moduleCallback(name, loader);
+			_.each(data.routes, _.bind(function(route) {
+				this.route(route.replace('*', '*var'), 'module:' + name, callback);
+			}, this));
+		},
+
+		moduleCallback : function(name, loader) {
+			return _.bind(function() {
+				if (!this.loadedModules[name]) {
+					Blocks.trigger('module:loading', name);
+					// loading module for the first time
+					var _this = this;
+					loader.loadModule({
+						success : function() {
+							_this.loadedModules[name] = true;
+							Backbone.history.loadUrl();
+							Blocks.trigger('module:loaded', name);
+						},
+						error : function(e) {
+							Blocks.trigger('module:error', name, e);
+						}
+					});
+				}
+			}, this);
+		}
+	});
+
+	_loader.SimpleLoader = _base.extend({
+		setOptions : function(name, data, options) {
+			this.name = name;
+			this.data = data;
+			this.options = options;
+			this.loadPrefix = (options && options.loadPrefix) || '';
+		},
+
+		loadModule : function(options) {
+			var returns = {};
+			var _this = this;
+			var timeout;
+			var success;
+
+			// make sure all script are loaded before truly calling the callback
+			var SuccessCallback = function(script) {
+				return function() {
+					if (!timeout) {
+						return;
+					}
+					var done = true;
+					returns[script] = true;
+					for ( var i = 0; i < _this.data.scripts.length; i++) {
+						if (!returns[_this.data.scripts[i]]) {
+							done = false;
+							break;
+						}
+					}
+					if (done) {
+						clearTimeout(timeout);
+						delete timeout;
+						success = true;
+						options.success();
+					}
+				};
+			};
+
+			// use a timeout to make the error callback if things don't load in time
+			timeout = setTimeout(function() {
+				if (!success) {
+					_this.timeout = true;
+					options.error && options.error('timeout');
+				}
+			}, this.timeout || 10000);
+
+			for ( var i = 0; i < this.data.scripts.length; i++) {
+				this.appendScript(this.data.scripts[i], new SuccessCallback(this.data.scripts[i]));
+			}
+			if (this.data.styles) {
+				for ( var i = 0; i < this.data.styles.length; i++) {
+					this.appendStyle(this.data.styles[i]);
+				}
+			}
+		},
+
+		appendScript : function(path, callback) {
+			var head = this.head || document.getElementsByTagName('head')[0];
+			var el = document.createElement('script'), loaded;
+			el.onload = el.onerror = el.onreadystatechange = function() {
+				if ((el.readyState && !(/^c|loade/.test(el.readyState))) || loaded) {
+					return;
+				}
+				loaded = true;
+				el.onload = el.onreadystatechange = null;
+				callback();
+			};
+			el.async = 1;
+			el.src = this.loadPrefix + path;
+			head.insertBefore(el, head.firstChild);
+		},
+
+		appendStyle : function(path) {
+			if (document.createStyleSheet) {
+				document.createStyleSheet(path);
+			} else {
+				$("head").append(
+								$("<link rel='stylesheet' href='" + this.loadPrefix + path
+												+ "' type='text/css' media='screen' />"));
+			}
+		}
+	});
+
+	/*****************************************************************************
 	 * MANAGED OBJECTS
 	 ****************************************************************************/
 
@@ -974,18 +1105,25 @@
 			if (options.alias) {
 				for ( var i = 0; i < l.length; i++) {
 					if (l[i].alias === options.alias) {
-						throw new Error('Can not add managed object with already used alias "' + options.alias
-										+ '"');
+						throw new Error('Duplicate alias "' + options.alias + '"');
 					}
 				}
 			}
+			if (options.handler === this.parent) {
+				throw new Error('Invalid handler - can not be the parent');
+			}
+
+			var store = {
+				options : options,
+				bindings : [],
+				alias : options.alias
+			};
 
 			// initialize options
 			options._data = {
-				type : type,
-				bindings : []
+				type : type
 			};
-			var bindings = options._data.bindings;
+			var bindings = store.bindings;
 			if (options.handler) {
 				options.handler.options = options;
 				options.handler[type] = options[type];
@@ -994,6 +1132,7 @@
 				options.handler = options[type];
 				options.handler.options = _.defaults(options.handler.options || {}, options);
 			}
+			store.handler = options.handler;
 
 			// provide a cleanup method
 			if (!options.handler.cleanUp) {
@@ -1041,7 +1180,7 @@
 				options._data.bindings = bindings;
 			}
 
-			l.push(options);
+			l.push(store);
 			return options[type];
 		},
 
@@ -1215,8 +1354,8 @@
 		destroy : function() {
 			for ( var type in this.managedObjects) {
 				_.each(this.managedObjects[type], function(obj) {
-					if (obj._data.bindings) {
-						_.each(obj._data.bindings, function(binding) {
+					if (obj.bindings) {
+						_.each(obj.bindings, function(binding) {
 							binding && binding();
 						});
 					}
@@ -1396,6 +1535,7 @@
 		root.templateEngine = new _template.Underscore();
 		root.contentProvider = new _content.HashProvider();
 		root.serializer = new _field.Serializer();
+		root.moduleLoaderClass = _loader.SimpleLoader;
 		return root.Defaults = {
 			objectManagerClass : Blocks.ObjectManager,
 			modelHandlerClass : _handler.ModelContextContributor,

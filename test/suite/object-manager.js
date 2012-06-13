@@ -59,43 +59,43 @@
 		});
 
 		var rtn = mgr.exec('foo', 'doRtn');
-		equal(rtn.total, 2);
-		equal(rtn.responded, 2);
-		equal(rtn.all(true), false);
-		equal(rtn.all(true, true), true);
-		equal(rtn.all(false), false);
-		equal(rtn.all(false, true), false);
+		equal(rtn.total, 2, 'valid total for all "foo" responders');
+		equal(rtn.responded, 2, 'valid count of "foo" responders');
+		equal(rtn.all(true), false, 'all(true) response when not all true');
+		equal(rtn.all(true, true), true, 'all(true, true) response when all are truthy');
+		equal(rtn.all(false), false, 'all(false) response when not all are false');
+		equal(rtn.all(false, true), false, 'all(false, false) response when not all are falsy');
 
-		equal(rtn.any(true), true);
-		equal(rtn.any(true, true), true);
-		equal(rtn.any(false), false);
-		equal(rtn.any(false, true), false);
+		equal(rtn.any(true), true, 'any(true) response when at leaast 1 is true');
+		equal(rtn.any(true, true), true, 'any(true, true) response when at leaast 1 is truthy');
+		equal(rtn.any(false), false, 'any(false) response when none are true');
+		equal(rtn.any(false, true), false, 'any(false) response when none are truthy');
 
 		rtn = mgr.exec('bar', 'doRtn');
-		equal(rtn.total, 2);
-		equal(rtn.responded, 2);
-		equal(rtn.all(true), false);
-		equal(rtn.all(true, true), false);
-		equal(rtn.all(false), false);
-		equal(rtn.all(false, true), true);
+		equal(rtn.total, 2, 'valid total for all "bar" responders');
+		equal(rtn.responded, 2, 'valid count of "bar" responders');
+		equal(rtn.all(true), false), 'all(true) response when not all true';
+		equal(rtn.all(true, true), false, 'all(true, true) response when not all are truthy');
+		equal(rtn.all(false), false, 'all(false) response when not all are false');
+		equal(rtn.all(false, true), true, 'all(false) response when all are falsy');
 
-		equal(rtn.any(true), false);
-		equal(rtn.any(true, true), false);
-		equal(rtn.any(false), true);
-		equal(rtn.any(false, true), true);
+		equal(rtn.any(true), false, 'any(true) response none are true');
+		equal(rtn.any(true, true), false, 'any(true) response when none are truthy');
+		equal(rtn.any(false), true, 'any(false) response when all are false');
+		equal(rtn.any(false, true), true, 'any(false) response when all are falsy');
 
 		rtn = mgr.exec(undefined, 'doRtn');
-		equal(rtn.total, 4);
-		equal(rtn.responded, 4);
-		equal(rtn.all(true), false);
-		equal(rtn.all(true, true), false);
-		equal(rtn.all(false), false);
-		equal(rtn.all(false, true), false);
+		equal(rtn.total, 4, 'valid total for all responders');
+		equal(rtn.responded, 4, 'valid count of responders');
+		equal(rtn.all(true), false, 'all(true) response when not all true');
+		equal(rtn.all(true, true), false, 'all(true, true) response when not all are truthy');
+		equal(rtn.all(false), false, 'all(false) response when not all are false');
+		equal(rtn.all(false, true), false, 'all(false) response when all are falsy');
 
-		equal(rtn.any(true), true);
-		equal(rtn.any(true, true), true);
-		equal(rtn.any(false), true);
-		equal(rtn.any(false, true), true);
+		equal(rtn.any(true), true, 'any(true) response when at leaast 1 is true');
+		equal(rtn.any(true, true), true, 'any(true, true) response when at leaast 1 is truthy');
+		equal(rtn.any(false), true, 'any(false) response when at least 1 is false');
+		equal(rtn.any(false, true), true, 'any(false) response when at least 1 is falsy');
 	});
 
 	test(
@@ -184,7 +184,7 @@
 		view.addModel(model, {
 			handler : handler
 		});
-		equal(handler.options._data.bindings.length, 3);
+		equal(handler.options._data.bindings.length, 3, 'All bindings got cached to be destroyed later');
 		var destroyCount = 0;
 		for ( var i = 0; i < handler.options._data.bindings.length; i++) {
 			handler.options._data.bindings[i] = function() {
@@ -192,7 +192,7 @@
 			};
 		}
 		view.destroy();
-		equal(destroyed, true);
-		equal(destroyCount, 3);
+		equal(destroyed, true, 'The binding destroy callback was called');
+		equal(destroyCount, 3, 'All entries in list were destroyed');
 	});
 })();

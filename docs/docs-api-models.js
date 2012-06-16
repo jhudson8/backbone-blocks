@@ -3,9 +3,9 @@ modelData.api = {
 	sections: {
 		'Plugins': {
 		
-			'Pages.TemplateEngine': {
-				descr: ' #{link:Pages.View#addView} Responsible for rendering templates (eg: underscore, jquery, mustache).  It would be up to the template engine impl to do template cacheing.',
-				defaultImpl: 'Pages.TemplateEngines.Underscore',
+			'Blocks.TemplateEngine': {
+				descr: ' #{link:Blocks.View#addView} Responsible for rendering templates (eg: underscore, jquery, mustache).  It would be up to the template engine impl to do template cacheing.',
+				defaultImpl: 'Blocks.TemplateEngines.Underscore',
 				methods: {
 					load: {
 						descr: 'Load a template and return a function ready to call with a single context parameter',
@@ -17,14 +17,14 @@ modelData.api = {
 				returns: 'object'
 			},
 		
-			'Pages.ContentProvider': {
+			'Blocks.ContentProvider': {
 				descr: 'Responsible for retrieving content which will usually be used as the input for template rendering.  This is a syncronous API.',
-				defaultImpl: 'Pages.ContentProviders.HashProvider',
+				defaultImpl: 'Blocks.ContentProviders.HashProvider',
 				methods: {
 					getAndRender: {
 						descr: 'Get the requested content as identified by the path *and* use the default template engine to render the contents as a template. \
 						  This is more than just a convenienance method as it allows cacheing of templates according to path as opposed to contents. \
-						  With no cacheing, the property can be <span class="code">getAndRender: Pages.ContentProviders.getAndRender</span>',
+						  With no cacheing, the property can be <span class="code">getAndRender: Blocks.ContentProviders.getAndRender</span>',
 						params: [
 							{name: 'path', descr: 'the content path'},
 							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true},
@@ -42,11 +42,11 @@ modelData.api = {
 				}
 			},
 		
-			'Pages.ManagedObjectHandler': {
+			'Blocks.ManagedObjectHandler': {
 				defaultImpl: [
-					{descr: 'View Subview handler see {#Pages.View#addView}', defaultImpl: 'Pages.SubViewHandlers.Default'},
-					{descr: 'View Model: see {#Pages.View#addModel}', defaultImpl: 'Pages.Handlers.ViewTemplate'},
-					{descr: 'View Collection: see {#Pages.View#addCollection}', defaultmpl: 'Backbone.CollectionHandlers.TemplateBound'}
+					{descr: 'View Subview handler see {#Blocks.View#addView}', defaultImpl: 'Blocks.SubViewHandlers.Default'},
+					{descr: 'View Model: see {#Blocks.View#addModel}', defaultImpl: 'Blocks.Handlers.ViewTemplate'},
+					{descr: 'View Collection: see {#Blocks.View#addCollection}', defaultmpl: 'Backbone.CollectionHandlers.TemplateBound'}
 				],
 				descr: 'An object responsible for handling events on another object (eg: view, model, collection).  This is how views handle sub-views, collections and models that interact with the UI.',
 				methods: {
@@ -58,7 +58,7 @@ modelData.api = {
 						parameters: [
 							{name: 'view', descr: 'the parent (ie: the view)', type: 'object'},
 							{name: 'object', descr: 'the managed object (ie: the subview/model/collection)', type: 'object'},
-							{name: 'options', descr: 'the provided options proxied from {#Pages.ObjectManager#add}', type: 'properties'}
+							{name: 'options', descr: 'the provided options proxied from {#Blocks.ObjectManager#add}', type: 'properties'}
 						]
 					},
 					destroy: {
@@ -67,8 +67,8 @@ modelData.api = {
 				}
 			},
 
-			'Pages.ObjectManager': {
-				desr: 'Contains all logic for "managed objects".  A managed object is just an object with the following properties described #{link:Pages.ManagedObjectHandler|here}.  Each managed object "watches" a parent object by using event bindings and does action based on those changes.  Pages uses these object to handle different data structures within views like sub-views, models and collections.  A special case of this is also a view mixin.',
+			'Blocks.ObjectManager': {
+				desr: 'Contains all logic for "managed objects".  A managed object is just an object with the following properties described #{link:Blocks.ManagedObjectHandler|here}.  Each managed object "watches" a parent object by using event bindings and does action based on those changes.  Pages uses these object to handle different data structures within views like sub-views, models and collections.  A special case of this is also a view mixin.',
 				methods: {
 					get: {
 						descr: 'return a single or list of managed objects',
@@ -79,14 +79,14 @@ modelData.api = {
 						returns: 'object or array'
 					},
 					getAll: {
-						descr: 'return all managed objects of a given type and call #{link:Pages.ManagedObjectHandler#destroy|destroy} on each one',
+						descr: 'return all managed objects of a given type and call #{link:Blocks.ManagedObjectHandler#destroy|destroy} on each one',
 						params: [
 							{name: 'type', descr: 'object type identifier'}
 						],
 						returns: 'list'
 					},
 					remove: {
-						descr: 'return a managed object and call #{link:Pages.ManagedObjectHandler#destroy|destroy}',
+						descr: 'return a managed object and call #{link:Blocks.ManagedObjectHandler#destroy|destroy}',
 						params: [
 							{name: 'type', descr: 'object type identifier'},
 							{name: 'alias', descr: 'managed object alias', type:'object'}
@@ -97,7 +97,7 @@ modelData.api = {
 						descr: 'add an object to be managed',
 						params: [
 							{name: 'type', descr: 'arbitrary type identifier (all aliases of objects with the same type must be unique)'},
-							{name: 'options', descr: 'object data <dl> <dt>alias</dt><dd>the object alias (unique by type)</dd> <dt>{type key}</dt><dd>the managed object</dd> <dt>handler</dt><dd>the #{link:Pages.ObjectHandler|object handler}</dd> <dt>selector</dt><dd>the element selector where appropriate</dd> </dl> And any othe properties that are meaningful to the #{link:Pages.ManagedObjectHandler|object handler}.', type:'properties'}
+							{name: 'options', descr: 'object data <dl> <dt>alias</dt><dd>the object alias (unique by type)</dd> <dt>{type key}</dt><dd>the managed object</dd> <dt>handler</dt><dd>the #{link:Blocks.ObjectHandler|object handler}</dd> <dt>selector</dt><dd>the element selector where appropriate</dd> </dl> And any othe properties that are meaningful to the #{link:Blocks.ManagedObjectHandler|object handler}.', type:'properties'}
 						]
 					},
 					exec: {
@@ -114,12 +114,12 @@ modelData.api = {
 				}
 			},
 
-			'Pages.Handlers.BaseElementHandler': {
+			'Blocks.Handlers.BaseElementHandler': {
 				mh: true,
 				descr: 'Abstract method set useful for plugin classes which deal with UI contributions.  These methods assume that the <em>selector</em> property is set in the options',
 				methods: {
 					'getElement': {
-						descr: 'returns the element as defined by <em>options.selector</em> (see #{link:Pages.ManagedObjectHandler#initialize}).  Note: the element must not have any inner content or an error will be thrown'
+						descr: 'returns the element as defined by <em>options.selector</em> (see #{link:Blocks.ManagedObjectHandler#initialize}).  Note: the element must not have any inner content or an error will be thrown'
 						},
 					'elBind': {
 						descr: 'bind the provided function (or function represented by name) to the element',
@@ -134,10 +134,10 @@ modelData.api = {
 		},
 		
 		'View Models': {
-			'Pages.Handlers.ViewTemplate': {
+			'Blocks.Handlers.ViewTemplate': {
 				mh: true,
 				defaultImpl: true,
-				descr: 'Simple model handler just exposes a <em>parentContext</em> method to contribute to a context for a template.  The default implementation of the #{Pages.View#getContext} will execute the parentContext method on all managed objects',
+				descr: 'Simple model handler just exposes a <em>parentContext</em> method to contribute to a context for a template.  The default implementation of the #{Blocks.View#getContext} will execute the parentContext method on all managed objects',
 				methods: {
 					'context': {
 						descr: 'if this alias is the default alias (so most likely is used without any other applied models), will add model attributes directly, otherwise will add model attributes to context using alias as the key'
@@ -155,8 +155,8 @@ modelData.api = {
 						<dl> <dt>empty</dt><dd>template used if there are no items to display</dd>\
 						<dl> <dt>loading</dt><dd>template used if the model data is currently being fetched (will default to empty)</dd> </dl>.\
 <pre class="code">\
-// view templates with alias of "foo" and view template property "myview" and no package (assuming the default #{link:Pages.ContentProvider|content provider}\
-Pages.Templates.myview = {\
+// view templates with alias of "foo" and view template property "myview" and no package (assuming the default #{link:Blocks.ContentProvider|content provider}\
+Blocks.Templates.myview = {\
 	\'foo-item\': \'item template contents\',\
 	\'foo-empty\': \'empty template contents\',\
 	\'foo-loading\': \'loading template contents\'\
@@ -226,12 +226,12 @@ Pages.Templates.myview = {\
 				}
 			},
 
-			'Pages.View': {
+			'Blocks.View': {
 				descr: 'Enhanced View class which provided support for managed objects and more powerful event binding.',
 				properties: {
-					templateEngine: 'A reference to the default #{link:Pages.TemplateEngine|template engine}',
-					contentProvider: 'A reference to the default #{link:Pages.ContentProvider|content provider}',
-					objectManager: 'Instance property for the the#{link:Pages.ObjectManager|object manager}' 
+					templateEngine: 'A reference to the default #{link:Blocks.TemplateEngine|template engine}',
+					contentProvider: 'A reference to the default #{link:Blocks.ContentProvider|content provider}',
+					objectManager: 'Instance property for the the#{link:Blocks.ObjectManager|object manager}' 
 				},
 				methods: {
 					'getTemplatePath': {
@@ -252,23 +252,23 @@ Pages.Templates.myview = {\
 					},
 
 					'mixin': {
-						descr: 'Add a mixin.  The mixin is basically a #{link:Pages.ManagedObjectHandler|managed object handler} except that the managed object is the view iteslf.  Whereas normal handlers have a reference to a parent (the view) and a context object, this only has a reference to the view.  The mixin initialize method has only 2 parameters (view, options)',
+						descr: 'Add a mixin.  The mixin is basically a #{link:Blocks.ManagedObjectHandler|managed object handler} except that the managed object is the view iteslf.  Whereas normal handlers have a reference to a parent (the view) and a context object, this only has a reference to the view.  The mixin initialize method has only 2 parameters (view, options)',
 						params: [
-							{name: 'mixin', desc: 'the mixin', type: '{Pages.ManagedObjectHandler}'},
+							{name: 'mixin', desc: 'the mixin', type: '{Blocks.ManagedObjectHandler}'},
 							{name: 'options', desc: 'options applicable to the mixin'}
 						]
 					},
 
 					'addView': {
-						descr: 'Add a managed sub-view.  The sub-view will be rendered any time the parent view is rendered and will be destroyed when the parent is destroyed.  The options.selector value is used to locate the sub-view location in the DOM.  The selector will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  By default, the #{link:Pages.Defaults.viewHandlerClass} handler will be used but an override can be supplied using the <em>handler</em> option.',
+						descr: 'Add a managed sub-view.  The sub-view will be rendered any time the parent view is rendered and will be destroyed when the parent is destroyed.  The options.selector value is used to locate the sub-view location in the DOM.  The selector will be defaulted if it doesn\'t exist using #{link:Blocks.Defaults.selectorGenerator} (by default ".{alias}".  By default, the #{link:Blocks.Defaults.viewHandlerClass} handler will be used but an override can be supplied using the <em>handler</em> option.',
 						params: {
 							'option 1': [
-								{name: 'view', desc: 'view instance', type: '{Pages.View}'},
+								{name: 'view', desc: 'view instance', type: '{Blocks.View}'},
 								{name: 'options', desc: 'options hash (at least alias or selector is required)', type: 'properties'},
 							],
 							'option 2': [
 								{name: 'alias', desc: 'alias'},
-								{name: 'view', desc: 'view instance', type: '{Pages.View}'},
+								{name: 'view', desc: 'view instance', type: '{Blocks.View}'},
 								{name: 'options', desc: 'options hash', type: 'properties'},
 							],
 							'option 3': [
@@ -283,7 +283,7 @@ Pages.Templates.myview = {\
 					},
 					
 					'addCollection': {
-						descr: 'Add a managed collection.  The actual implementation is up to the #{link:Pages.ManagedObjectHandler|handler} but the default impl is #{link:Backbone.CollectionHandlers.TemplateBound}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
+						descr: 'Add a managed collection.  The actual implementation is up to the #{link:Blocks.ManagedObjectHandler|handler} but the default impl is #{link:Backbone.CollectionHandlers.TemplateBound}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Blocks.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
 						params: {
 							'option 1': [
 								{name: 'collection', desc: 'collection instance', type: '{Backbone.Collection}'},
@@ -305,7 +305,7 @@ Pages.Templates.myview = {\
 					},
 
 					'addModel': {
-						descr: 'Add a managed model.  The actual implementation is up to the #{link:Pages.ManagedObjectHandler|handler} but the default impl is #{link:Pages.Handlers.ViewTemplate}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Pages.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
+						descr: 'Add a managed model.  The actual implementation is up to the #{link:Blocks.ManagedObjectHandler|handler} but the default impl is #{link:Blocks.Handlers.ViewTemplate}.  The <em>options.selector</em> option value will be defaulted if it doesn\'t exist using #{link:Blocks.Defaults.selectorGenerator} (by default ".{alias}".  The <em>handler</em> option value can be used to override the default managed object handler impl.',
 						params: {
 							'option 1': [
 								{name: 'model', desc: 'model instance', type: '{Backbone.Model}'},
@@ -327,7 +327,7 @@ Pages.Templates.myview = {\
 					},
 
 					'render': {
-						descr: 'Render this view by calling #{link:Pages.View.execTemplate} using #{link:Pages.View.getTemplatePath} and #{link:Pages.View.getContext}.  #{link:Pages.ManagedObjectHandler|managed object handlers} should use the "parent:rendered" event name to make UI changes after the view has been rendered (ex: events: {\'parent:rendered\': \'myRenderMethod\'}',
+						descr: 'Render this view by calling #{link:Blocks.View.execTemplate} using #{link:Blocks.View.getTemplatePath} and #{link:Blocks.View.getContext}.  #{link:Blocks.ManagedObjectHandler|managed object handlers} should use the "parent:rendered" event name to make UI changes after the view has been rendered (ex: events: {\'parent:rendered\': \'myRenderMethod\'}',
 						triggers: [
 							{name: 'rendering', descr: 'Before rendering occurs'},
 							{name: 'rendered', descr: 'After rendering occurs'}
@@ -376,14 +376,14 @@ events: {\
 	}
 
 defaults = {
-	modelAlias: 'the default alias used for registering a model #{link:Pages.ManagedObjectHandler|object handler}',
-	collectionAlias: 'the default alias used for registering a collection #{link:Pages.ManagedObjectHandler|object handler}',
-	viewAlias: 'the default alias used for registering a sub-view #{link:Pages.ManagedObjectHandler|object handler}',
+	modelAlias: 'the default alias used for registering a model #{link:Blocks.ManagedObjectHandler|object handler}',
+	collectionAlias: 'the default alias used for registering a collection #{link:Blocks.ManagedObjectHandler|object handler}',
+	viewAlias: 'the default alias used for registering a sub-view #{link:Blocks.ManagedObjectHandler|object handler}',
 	collectionContainerClass: 'the default element class that will be applied to the collection content root',
 	subviewContainerClass: 'the default element class that will be applied to the sub-view content root',
 	modelContainerClass: 'the default element class that will be applied to the model content root',
-	eventWatch: {descr: 'should, by default, registered #{link:Pages.ManagedObjectHandler|object handlers} bubble their events to the parent (view) using the alias as a prefix', type: 'boolean'},
-	selectorGenerator: 'function use to take options from #{link:Pages.View#addView}, #{link:Pages.View#addCollection}, and #{link:Pages.View#addModel} and return the root element selector'
+	eventWatch: {descr: 'should, by default, registered #{link:Blocks.ManagedObjectHandler|object handlers} bubble their events to the parent (view) using the alias as a prefix', type: 'boolean'},
+	selectorGenerator: 'function use to take options from #{link:Blocks.View#addView}, #{link:Blocks.View#addCollection}, and #{link:Blocks.View#addModel} and return the root element selector'
 }
 
 plugins = {

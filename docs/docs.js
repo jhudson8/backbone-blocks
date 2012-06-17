@@ -8,18 +8,16 @@ Blocks.templates = {
 				<p class="desc">{{linkScan descr}}</p>\
 				<p class="parameters"</p></li>',
 		parameters : {
-			empty : 'there are no parameters'
+			empty : ''
 		}
 	},
-	'api-parameter' : '<p class="arguement"><strong>{{name}}</strong><span class="argument-type">({{type}})</span> {{linkScan descr}} </p>',
+	'api-parameter' : '<p class="arguement"><strong title="{{type}}">{{name}}</strong>: {{linkScan descr}} </p>',
 	'mini-api-index' : '<div class="sections"></div>',
-	'mini-api-section' : '<a class="toc_title" href="#section/{{name}}">{{name}}</a> <ul class="toc_section classes"></div>',
-	'mini-api-class' : '<li><a href="#api/{{name}}">{{name}}</a>\
-			<div class="methods"></div>\
-			</li>',
+	'mini-api-section' : '<div class="classes"></div>',
+	'mini-api-class' : '<a class="toc_title" href="#api/{{name}}">{{name}}</a> <ul class="toc_section methods"></ul>',
 	'mini-api-method' : {
-		template : '<div class="method-label"><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></div>',
-		'parameters-empty' : 'there are no parameters'
+		template : '<li><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></li>',
+		'parameters-empty' : ''
 	}
 };
 
@@ -116,11 +114,13 @@ views.APIClass = views.Base.extend({
 
 	onRendered : function() {
 		if (this.options.method) {
-			var el = this.$('.method-' + this.options.method);
-			if (el.size()) {
-				el.get(0).scrollIntoView();
-				// el.effect("highlight", {}, 3000);
-			}
+			_.defer(_.bind(function() {
+				var el = this.$('.api-method-' + this.options.method);
+				if (el.size()) {
+					el.get(0).scrollIntoView();
+					el.effect("highlight", {}, 3000);
+				}
+			}, this));
 		}
 	},
 
@@ -134,10 +134,10 @@ views.APIClass = views.Base.extend({
 
 views.APIMethod = views.Base.extend({
 	viewName : 'api-method',
-	className : 'api-method',
 	template : miniTemplate,
 
 	init : function() {
+		this.$el.addClass('api-method-' + this.options.method.attributes.name);
 		this.addModel(this.options.method);
 		if (this.options.method.parameters) {
 			this.parameters = this.addCollection('parameters',

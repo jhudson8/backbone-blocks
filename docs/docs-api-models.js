@@ -3,46 +3,230 @@ modelData.api = {
 	sections: {
 		'Plugins': {
 		
-			'Blocks.TemplateEngine': {
-				descr: ' #{link:Blocks.View#addView} Responsible for rendering templates (eg: underscore, jquery, mustache).  It would be up to the template engine impl to do template cacheing.',
-				defaultImpl: 'Blocks.TemplateEngines.Underscore',
+			'TemplateEngine': {
+				descr: ' #{link:Blocks.View#addView} Responsible for rendering templates (eg: underscore, jquery, mustache).',
+				defaultImpl: 'Blocks.Template.Underscore',
 				methods: {
-					load: {
+					get: {
 						descr: 'Load a template and return a function ready to call with a single context parameter',
 						params: [
-							{name: 'content', descr: 'the template content'}
+							{name: 'content', descr: 'the template content'},
+							{name: 'options', descr: 'options meaningful to template engine impl'}
 						]
 					}
 				},
 				returns: 'object'
 			},
 		
-			'Blocks.ContentProvider': {
+			'ContentProvider': {
 				descr: 'Responsible for retrieving content which will usually be used as the input for template rendering.  This is a syncronous API.',
-				defaultImpl: 'Blocks.ContentProviders.HashProvider',
+				defaultImpl: 'Blocks.Content.HashProvider',
 				methods: {
-					getAndRender: {
-						descr: 'Get the requested content as identified by the path *and* use the default template engine to render the contents as a template. \
-						  This is more than just a convenienance method as it allows cacheing of templates according to path as opposed to contents. \
-						  With no cacheing, the property can be <span class="code">getAndRender: Blocks.ContentProviders.getAndRender</span>',
-						params: [
-							{name: 'path', descr: 'the content path'},
-							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true},
-							{name: 'data', descr: 'the data context to be sent to the template render call', optional: true},
-							{name: 'suppressErrors', descr: 'boolean indicating if errors should be suppressed.  If they are suppressed, the impl should trigger the <em>error:template</em> with hash containing <em>path</em>, and <em>error</e> values.', type: 'boolean', optional: true, defaultVal: 'false'}
-						]
-					},
 					get: {
 						descr: 'return the content as identified by the path',
 						params: [
 							{name: 'path', descr: 'the content path'},
 							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true}
 						]
+					},
+					isValid: {
+						descr: 'return a boolean representing whether the given view/path corresponds to a valid template',
+						params: [
+							{name: 'path', descr: 'the content path'},
+							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true}
+						],
+						returns: 'boolean'
 					}
 				}
 			},
+			
+			'NamingStrategy': {
+				descr: 'To be used with a #{link:Serializer}, used to map DOM elements with an #{link:InputHandler}',
+				defaultImpl: 'Blocks.Handler.Field.SimpleNamingStrategy',
+				methods: {
+					getFieldKey: {
+						descr: 'Return the model field key for a DOM element or null if N/A',
+						params: [
+						    {name: 'element', descr: 'the DOM element'}
+						]
+					},
+					getElement: {
+						descr: 'Return the jquery selector for all elements associated with the field key',
+						params: [
+						   {name: 'key', descr: 'the model attribute key'},
+						   {name: 'root', descr: 'the root jquery selector'}
+						]
+					},
+					getElements: {
+						descr: 'Return an map of elements with key as model field key and value as single element or list of elements. The default strategy will \
+							ignore all elements with a data-type attribute (assuming another naming strategy will override).',
+						params: [
+						   {name: 'root', descr: 'the root jquery selector'}
+						]
+					}
+				}
+			},
+			
+			'InputHandler': {
+				descr: 'To be used with a #{link:Serializer}, an input handler is used for serializing and mapping field input values to models or hash objects',
+				defaultImpl: 'Blocks.Handler.Field.SimpleInputHandler',
+				methods: {
+					serializeField: {
+						descr: 'Serialize and return a single input field value',
+						params: [
+						    {name: 'element', descr: 'the DOM element', type: 'element'}
+						]
+					},
+					serialize: {
+						descr: 'Serialize the input(s) represented by the element(s) to the attributes map using the provided key',
+						params: [
+						    {name: 'key', descr: 'the model attributes key'},
+						    {name: 'elements', descr: 'array of DOM elements returned by naming strategy for this field', type:'array:element'},
+						    {name: 'attr', descr: 'optional attribues hash (will be returned if falsy)', type:'properties'},
+						]
+					},
+					setElementValue: {
+						descr: 'Set the element(s) value using the provided value',
+						params: [
+						    {name: 'key', descr: 'the model attributes key'},
+						    {name: 'value', descr: 'the value to set', type:'object'},
+						    {name: 'el', descr: 'the jquery wrapped element', type:'$element'},
+						]
+					}
+				}
+			},
+			
+			'Serializer': {
+				descr: 'Used to synchronize models to DOM and DOM back to models.  The Serializer is actually a manager for sets of #{link:NamingStrategy} and #{link:InputHandler}.\
+					The naming strategy is used to select individual fields for an input handler which is actually used to do the DOM / model synchronization.\
+					This is generally not used directly as there are helper methods on #{link:Blocks} which use the default serializer.  The default serializer can be set using the\
+					`Blocks.Defaults.serializer` value.',
+				defaultImpl: 'Blocks.Handler.Field.Serializer',
+				methods: {
+					add: {
+						descr: 'Add a naming #{link:NamingStrategy} and #{link:InputHandler} set.',
+						params: [
+						    {name: 'data', descr: 'hash containing `namingStrategy` and `inputHandler`', type: 'properties'}
+						],
+						returns: 'this'
+					},
+					serializeField: {
+						descr: 'Serialize a single field and return the value.  All naming strategies will be queried for the the field and the first one that \
+							returns a field name will have their associated input handler return the serialized value.',
+						params: [
+						    {name: 'el', descr: 'the DOM element to serialize', type:'array:element'}
+						],
+						returns: 'object'
+					},
+					serialize: {
+						descr: 'Serialize all input fields under the given root.  All naming strategies will be queried for the the field and the first one that \
+							returns a field name will have their associated input handler return the serialized value.  Return all serialized values as a hash.',
+						params: [
+						    {name: 'root', descr: 'the root jquery selector', type:'$element'},
+						    {name: 'attr', descr: 'attributes hash to populate', type: 'properties', optional:true}
+						],
+						returns: 'properties'
+					},
+					synchronizeDOM: {
+						descr: 'Synchronize all input fields with the corresponding model attribute values.  Any field that has a naming strategy using #{link:NamingStrategy#getFieldKey}\
+							match will have it\'s corresponding input handler set the value using #{link:InputHandler#setElementValue}.',
+						params: [
+						    {name: 'root', descr: 'the root jquery selector', type:'$element'},
+						    {name: 'model', descr: 'the source model to synchronize', type: 'model,properties'}
+						]
+					},
+				}
+			},
+			
+			'ManagedModelHandler': {
+				defaultImpl: 'Blocks.Handler.ModelContextContributor',
+				descr: 'External class used to perform actions for a view related to a model and within the context of a view.  The `events` property can be used for binding to view events\
+					as well as model, DOM and window events.  Each handler will get initialized (#{link:ManagedModelHandler#init}) with the associated view, model and options used when the\
+					handler was added (see #{Blocks.View#addModel}).<br><br>There is no single required method but several optional methods depending on the pupose of the handler.<br><br>\
+					Methods can be called on handlers using the #{link:Blocks.View#exec} method.<br><br>When the handler is registered with a `selector` option value, an additional property,\
+					`$el` property will be set as an instance variable on the handler with the value of the jquery-wrapped element identified by the selector.',
+				methods: {
+					init: {
+						descr: 'Initialize the handler with the associated model and view.  This is called automatically when the handler is registered.',
+						params: [
+						    {name: 'view', descr: 'The parent view that contains the model', type: 'Blocks.View'},
+						    {name: 'model', descr: 'The associated model', type: 'Backbone.Model'},
+						    {name: 'options', descr: 'Any additional options used with the #{link:Blocks.View#addModel} call'}
+						]
+					},
+					events: 'This can either be a function which returns a set of Backbone-style events and bindings or the hash structure.\
+						<ul><li>Standard events with no space are assumed to refer to the associated model</li>\
+						<li>Events prefixed with `!` will cause the associated method to be called when the event fires <strong>and</strong> the model has been fetched</li>\
+						<li>Events that start with `parent:` are assumed to refer to the parent view</li>\
+						<li>Events that contain whitespace (`event selector`) are assumed to refer to DOM element bindings.  An optional `selector` option must be used in this case to identify the UI focus of this handler</li>\
+						<li>Events that start with `$window ` are assumed to refer to window bindings.</li></ul>  All bindings are cleaned up automatically (assuming the parent view destroy method is called).',
+					destroy: 'Called automatically when the parent view destory method is called',
+					parentContext: {
+						descr: 'This is called with the default view rendering behavior.  Any handler that wishes to add to the view context can do so here.',
+						params: [
+						     {name: 'context', descr: 'The context used for the parent view template merge', type: 'properties'}
+						]
+					},
+					synchronize: {
+						descr: 'Synchronize all DOM input field data with the associated model.  Return true with no validation issues and false otherwise.',
+						params: [
+						     {name: 'options', descr: 'Any options used for the set call', optional: true}
+						],
+						returns: 'boolean'
+					}
+				}
+			},
+
+			'ManagedCollectionHandler': {
+				defaultImpl: 'Blocks.Handler.CollectionContextContributor',
+				descr: 'External class used to perform actions for a view related to a collection and within the context of a view.  The `events` property can be used for binding to view events\
+					as well as collection, DOM and window events.  Each handler will get initialized (#{link:ManagedCollectionHandler#init}) with the associated view, collection and options used when the\
+					handler was added (see #{Blocks.View#addCollection}).<br><br>There is no single required method but several optional methods depending on the pupose of the handler.<br><br>\
+					Methods can be called on handlers using the #{link:Blocks.View#exec} method.<br><br>When the handler is registered with a `selector` option value, an additional property,\
+					`$el` property will be set as an instance variable on the handler with the value of the jquery-wrapped element identified by the selector.',
+				methods: {
+					init: {
+						descr: 'Initialize the handler with the associated collection and view.  This is called automatically when the handler is registered.',
+						params: [
+						    {name: 'view', descr: 'The parent view that contains the model', type: 'Blocks.View'},
+						    {name: 'collection', descr: 'The associated collection', type: 'Backbone.Collection'},
+						    {name: 'options', descr: 'Any additional options used with the #{link:Blocks.View#addCollection} call'}
+						]
+					},
+					events: 'This can either be a function which returns a set of Backbone-style events and bindings or the hash structure.\
+						<ul><li>Standard events with no space are assumed to refer to the associated collection</li>\
+						<li>Events prefixed with `!` will cause the associated method to be called when the event fires <strong>and</strong> the collection has been fetched</li>\
+						<li>Events that start with `parent:` are assumed to refer to the parent view</li>\
+						<li>Events that contain whitespace (`event selector`) are assumed to refer to DOM element bindings.  An optional `selector` option must be used in this case to identify the UI focus of this handler</li>\
+						<li>Events that start with `$window ` are assumed to refer to window bindings.</li></ul>  All bindings are cleaned up automatically (assuming the parent view destroy method is called).',
+					destroy: 'Called automatically when the parent view destory method is called',
+					parentContext: {
+						descr: 'This is called with the default view rendering behavior.  Any handler that wishes to add to the view context can do so here.',
+						params: [
+						     {name: 'context', descr: 'The context used for the parent view template merge', type: 'properties'}
+						]
+					},
+					synchronize: {
+						descr: 'Synchronize all DOM input field data with the associated model.  Return true with no validation issues and false otherwise.',
+						params: [
+						     {name: 'options', descr: 'Any options used for the set call', optional: true}
+						],
+						returns: 'boolean'
+					}
+				}
+			},
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
 		
-			'Blocks.ManagedObjectHandler': {
+			'ManagedObjectHandler': {
 				defaultImpl: [
 					{descr: 'View Subview handler see {#Blocks.View#addView}', defaultImpl: 'Blocks.SubViewHandlers.Default'},
 					{descr: 'View Model: see {#Blocks.View#addModel}', defaultImpl: 'Blocks.Handlers.ViewTemplate'},
@@ -391,10 +575,15 @@ plugins = {
 
 // normalize the data
 // copy all entries of a hash structury and set a specific property with the key
-function convertIndexedToList(root, parentKey, childKey) {
+function convertIndexedToList(root, parentKey, childKey, stringValKey) {
 	var rootList = [];
 	for (var prop in root) {
 		var rootItem = root[prop];
+		if (_.isString(rootItem) && stringValKey) {
+			var _rootItem = {};
+			_rootItem[stringValKey] = rootItem;
+			rootItem = _rootItem;
+		}
 		if (childKey) {
 			var _rootItem = {};
 			_rootItem[parentKey] = prop;
@@ -412,7 +601,7 @@ modelData.api.sections = convertIndexedToList(modelData.api.sections, 'name', 'c
 _.each(modelData.api.sections, function(section) {
 	section.classes = convertIndexedToList(section.classes, 'name');
 	_.each(section.classes, function(clazz) {
-		clazz.methods = convertIndexedToList(clazz.methods, 'name');
+		clazz.methods = convertIndexedToList(clazz.methods, 'name', undefined, 'descr');
 	});
 });
 plugins = convertIndexedToList(plugins, 'name');
@@ -438,7 +627,7 @@ for (var name in modelData.index) {
 	}
 }
 
-/** CLASS DEFINITIONS **/
+/** CLASS DEFINITIONS * */
 var models = {}, collections = {};
 models.Base = Backbone.Model.extend({
 	fetch: function(options) {
@@ -459,7 +648,7 @@ collections.Base = Backbone.Collection.extend({
 	}
 });
 
-/** MODELS **/
+/** MODELS * */
 models.Section = models.Base.extend({
 	parse: function(data) {
 		this.classes = new collections.Classes(data.classes, {parse: true});
@@ -499,7 +688,7 @@ models.Parameter = models.Base.extend({
 });
 
 
-/** COLLECTIONS **/
+/** COLLECTIONS * */
 collections.Sections = collections.Base.extend({
 	model: models.Section
 });

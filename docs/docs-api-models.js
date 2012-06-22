@@ -2,9 +2,14 @@ var modelData = {};
 modelData.api = {
 	sections: {
 		'Plugins': {
-		
 			'TemplateEngine': {
-				descr: ' #{link:Blocks.View#addView} Responsible for rendering templates (eg: underscore, jquery, mustache).',
+				descr: 'Responsible for transforming content into template functions (eg: underscore, jquery, mustache).  Templates can be used in the following ways: <ul>\
+					<li>If within a view, use the #{link:Blocks.View#mergeTemplate|View helper method} ```\
+var context = {"foo": "bar"};\n\
+var content = this.mergeTemplate("my/content/path", context);\n\
+this.$(".whatever").html(content);\
+```</li><li>Use the #{link:Blocks#template} method</li></ul>\
+					<p>Use `Blocks.Defaults.templateEngine` to set a different template engine.  See #{link:Blocks.Template.Handlebars} for example.</p>',
 				defaultImpl: 'Blocks.Template.Underscore',
 				methods: {
 					get: {
@@ -12,10 +17,10 @@ modelData.api = {
 						params: [
 							{name: 'content', descr: 'the template content'},
 							{name: 'options', descr: 'options meaningful to template engine impl'}
-						]
+						],
+						returns: ['function(data)', 'function ready to call with context parameter']
 					}
-				},
-				returns: 'object'
+				}
 			},
 		
 			'ContentProvider': {
@@ -27,7 +32,8 @@ modelData.api = {
 						params: [
 							{name: 'path', descr: 'the content path'},
 							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true}
-						]
+						],
+						returns: ['string', 'the requested content']
 					},
 					isValid: {
 						descr: 'return a boolean representing whether the given view/path corresponds to a valid template',
@@ -35,7 +41,7 @@ modelData.api = {
 							{name: 'path', descr: 'the content path'},
 							{name: 'view', descr: 'the view where the content will be displayed (can be used for impl content location)', optional: true}
 						],
-						returns: 'boolean'
+						returns: ['boolean', 'true if the content is valid, false otherwise']
 					}
 				}
 			},
@@ -48,21 +54,24 @@ modelData.api = {
 						descr: 'Return the model field key for a DOM element or null if N/A',
 						params: [
 						    {name: 'element', descr: 'the DOM element'}
-						]
+						],
+						returns: ['string', 'the model field key']
 					},
 					getElement: {
 						descr: 'Return the jquery selector for all elements associated with the field key',
 						params: [
 						   {name: 'key', descr: 'the model attribute key'},
 						   {name: 'root', descr: 'the root jquery selector'}
-						]
+						],
+						returns: ['$element', 'the jquery selector for all field-oriented elements']
 					},
 					getElements: {
 						descr: 'Return an map of elements with key as model field key and value as single element or list of elements. The default strategy will \
 							ignore all elements with a data-type attribute (assuming another naming strategy will override).',
 						params: [
 						   {name: 'root', descr: 'the root jquery selector'}
-						]
+						],
+						returns: ['properties[field key, DOM element array]', 'map of elements to field key']
 					}
 				}
 			},
@@ -75,7 +84,8 @@ modelData.api = {
 						descr: 'Serialize and return a single input field value',
 						params: [
 						    {name: 'element', descr: 'the DOM element', type: 'element'}
-						]
+						],
+						returns: ['object', 'single field value (usually a string but is not required to be)']
 					},
 					serialize: {
 						descr: 'Serialize the input(s) represented by the element(s) to the attributes map using the provided key',
@@ -83,7 +93,8 @@ modelData.api = {
 						    {name: 'key', descr: 'the model attributes key'},
 						    {name: 'elements', descr: 'array of DOM elements returned by naming strategy for this field', type:'array:element'},
 						    {name: 'attr', descr: 'optional attribues hash (will be returned if falsy)', type:'properties'},
-						]
+						],
+						returns: ['properties[field key, model-oriented field value]', 'the serialized field values (equal to attr if passed)']
 					},
 					setElementValue: {
 						descr: 'Set the element(s) value using the provided value',
@@ -111,21 +122,21 @@ modelData.api = {
 						returns: 'this'
 					},
 					serializeField: {
-						descr: 'Serialize a single field and return the value.  All naming strategies will be queried for the the field and the first one that \
+						descr: 'Serialize a single field and return the value.  All naming strategies will be queried for the the field and the first one that\
 							returns a field name will have their associated input handler return the serialized value.',
 						params: [
 						    {name: 'el', descr: 'the DOM element to serialize', type:'array:element'}
 						],
-						returns: 'object'
+						returns: ['object', 'whatever value the associated input handler returns which is usually a string']
 					},
 					serialize: {
-						descr: 'Serialize all input fields under the given root.  All naming strategies will be queried for the the field and the first one that \
+						descr: 'Serialize all input fields under the given root.  All naming strategies will be queried for the the field and the first one that\
 							returns a field name will have their associated input handler return the serialized value.  Return all serialized values as a hash.',
 						params: [
 						    {name: 'root', descr: 'the root jquery selector', type:'$element'},
 						    {name: 'attr', descr: 'attributes hash to populate', type: 'properties', optional:true}
 						],
-						returns: 'properties'
+						returns: ['properties[model field key, model field value]', 'the model attributes']
 					},
 					synchronizeDOM: {
 						descr: 'Synchronize all input fields with the corresponding model attribute values.  Any field that has a naming strategy using #{link:NamingStrategy#getFieldKey}\
@@ -159,7 +170,7 @@ modelData.api = {
 						<li>Events prefixed with `!` will cause the associated method to be called when the event fires <strong>and</strong> the model has been fetched</li>\
 						<li>Events that start with `parent:` are assumed to refer to the parent view</li>\
 						<li>Events that contain whitespace (`event selector`) are assumed to refer to DOM element bindings.  An optional `selector` option must be used in this case to identify the UI focus of this handler</li>\
-						<li>Events that start with `$window ` are assumed to refer to window bindings.</li></ul>  All bindings are cleaned up automatically (assuming the parent view destroy method is called).',
+						<li>Events that start with `$window` are assumed to refer to window bindings.</li></ul>  All bindings are cleaned up automatically (assuming the parent view destroy method is called).',
 					destroy: 'Called automatically when the parent view destory method is called',
 					parentContext: {
 						descr: 'This is called with the default view rendering behavior.  Any handler that wishes to add to the view context can do so here.',
@@ -172,7 +183,14 @@ modelData.api = {
 						params: [
 						     {name: 'options', descr: 'Any options used for the set call', optional: true}
 						],
-						returns: 'boolean'
+						returns: ['boolean', 'true if success, false if validation issues']
+					},
+					serialize: {
+						descr: 'Serialize all input fields to a hash structure.  Unless explicitely needed otherwise, the default serializer should be used for serialization (#{link:Blocks#serialize}).  Return all serialized values as a hash.',
+						params: [
+						    {name: 'attr', descr: 'attributes hash to populate', type: 'properties'}
+						],
+						returns: ['properties[model field key, model field value]', 'all model attributes']
 					}
 				}
 			},
@@ -211,46 +229,92 @@ modelData.api = {
 						params: [
 						     {name: 'options', descr: 'Any options used for the set call', optional: true}
 						],
-						returns: 'boolean'
-					}
-				}
-			},
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-		
-			'ManagedObjectHandler': {
-				defaultImpl: [
-					{descr: 'View Subview handler see {#Blocks.View#addView}', defaultImpl: 'Blocks.SubViewHandlers.Default'},
-					{descr: 'View Model: see {#Blocks.View#addModel}', defaultImpl: 'Blocks.Handlers.ViewTemplate'},
-					{descr: 'View Collection: see {#Blocks.View#addCollection}', defaultmpl: 'Backbone.CollectionHandlers.TemplateBound'}
-				],
-				descr: 'An object responsible for handling events on another object (eg: view, model, collection).  This is how views handle sub-views, collections and models that interact with the UI.',
-				methods: {
-					events: {
-						descr: '(could be hash instead of function).  Just like standard backbone events, a data structure used to auto-bind handler methods to the managed object.  A special "parent:" prefix could be added to bind to the parent object instead of the managed object (ie: the parent view as opposed to the managed view/collection/model)'
+						returns: ['boolean', 'true if success, false if validation issues']
 					},
-					initialize: {
-						descr: 'called once at beginning of lifecycle',
-						parameters: [
-							{name: 'view', descr: 'the parent (ie: the view)', type: 'object'},
-							{name: 'object', descr: 'the managed object (ie: the subview/model/collection)', type: 'object'},
-							{name: 'options', descr: 'the provided options proxied from {#Blocks.ObjectManager#add}', type: 'properties'}
-						]
-					},
-					destroy: {
-						descr: 'called once at end of lifecyle'
+					serialize: {
+						descr: 'Serialize all input fields to a hash structure.  Unless explicitely needed otherwise, the default serializer should be used for serialization (#{link:Blocks#serialize}).  Return all serialized values as a hash.',
+						params: [
+						    {name: 'attr', descr: 'attributes hash to populate', type: 'properties'}
+						],
+						returns: ['properties[model field key, model field value]', 'all model attributes']
 					}
 				}
 			},
 
+			'ManagedViewHandler': {
+				defaultImpl: 'Blocks.Handler.SimpleSubView',
+				descr: 'External class used to allow views to contain subviews.  A subview is added using #{link:Blocks.View#addView} with either the default handler or a custom one (as\
+					defined by the `handler` option property).  The default handler will be all that is needed in most cases as it will clean up sub views and re-render sub views if\
+					parent views are rendered.  Like other managed handlers, the `events` property can be used for binding to view events\
+					as well as collection, DOM and window events.  Each handler will get initialized with the associated view, sub view and options used when the\
+					handler was added.<br><br>There is no single required method but several optional methods depending on the pupose of the handler.  A subview must always be registered\
+					with a `selector` option parameter and will always have an `$el` property set on the handler instance as the jquery-wrapped element identified by the selector.',
+				methods: {
+					init: {
+						descr: 'Initialize the handler with the associated sub view and parent view.  This is called automatically when the handler is registered.',
+						params: [
+						    {name: 'view', descr: 'The parent view that contains the sub view', type: 'Blocks.View'},
+						    {name: 'subView', descr: 'The sub view', type: 'Blocks.View'},
+						    {name: 'options', descr: 'Any additional options used with the #{link:Blocks.View#addCollection} call'}
+						]
+					},
+					events: 'This can either be a function which returns a set of Backbone-style events and bindings or the hash structure.\
+						<ul><li>Standard events with no space are assumed to refer to the associated collection</li>\
+						<li>Events prefixed with `!` will cause the associated method to be called when the event fires <strong>and</strong> the collection has been fetched</li>\
+						<li>Events that start with `parent:` are assumed to refer to the parent view</li>\
+						<li>Events that contain whitespace (`event selector`) are assumed to refer to DOM element bindings.  An optional `selector` option must be used in this case to identify the UI focus of this handler</li>\
+						<li>Events that start with `$window ` are assumed to refer to window bindings.</li></ul>  All bindings are cleaned up automatically (assuming the parent view destroy method is called).',
+					destroy: 'Called automatically when the parent view destory method is called'
+				}
+			},
+
+			
+			
+			
+			
+			/***********************
+			 * ABSTRACT / IMPL CLASSES
+			 **********************/
+			'Blocks.Handlers.Base': {
+				descr: 'Base class for handlers or actually any other plugin.  Basically just exposes the Bacbone `extends` method as well as Backbone.Events',
+				methods: {
+					'setOptions': {
+						descr: 'Called on construction with parameters being constructor arguments'
+						},
+					'extend': {
+						descr: 'Static method to be used when creating a subclass.  ```var mySubClass = Blocks.Handlers.Base.extend({ ... });```',
+						params: [
+							{name: 'properties', descr: 'the subclass prototype properties', type: 'properties'},
+						]
+					}
+				}
+			},
+			'Blocks.Template.Underscore': {
+				descr: 'Template engine using underscore #{extlink:http://underscorejs.org/#template|template} method.<br><br>This is the default template engine to avoid adding additional dependencies.',
+				interfaceClass: 'TemplateEngine'
+			},
+			'Blocks.Template.Handlebars': {
+				descr: 'Template engine which uses #{extlink:http://handlebarsjs.com|Handlebars}.  To use this, you must<ul>\
+					<li>Include #{extlink:http://cloud.github.com/downloads/wycats/handlebars.js/handlebars-1.0.0.beta.6.js|handlebars.js}</li>\
+					<li>Include the following code ```Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();```</li></ul>',
+				interfaceClass: 'TemplateEngine'
+			},
+			'Blocks.Content.HashProvider': {
+				descr: 'Template engine which uses #{extlink:http://handlebarsjs.com|Handlebars}.  To use this, you must<ul>\
+					<li>Include #{extlink:http://cloud.github.com/downloads/wycats/handlebars.js/handlebars-1.0.0.beta.6.js|handlebars.js}</li>\
+					<li>Include the following code ```Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();```</li></ul>',
+				interfaceClass: 'TemplateEngine'
+			},
+			
+			
+			
+			
+			
+			
+			
+			
+			
+/*
 			'Blocks.ObjectManager': {
 				desr: 'Contains all logic for "managed objects".  A managed object is just an object with the following properties described #{link:Blocks.ManagedObjectHandler|here}.  Each managed object "watches" a parent object by using event bindings and does action based on those changes.  Pages uses these object to handle different data structures within views like sub-views, models and collections.  A special case of this is also a view mixin.',
 				methods: {
@@ -297,24 +361,10 @@ modelData.api = {
 					}			
 				}
 			},
+*/
+			
+			
 
-			'Blocks.Handlers.BaseElementHandler': {
-				mh: true,
-				descr: 'Abstract method set useful for plugin classes which deal with UI contributions.  These methods assume that the <em>selector</em> property is set in the options',
-				methods: {
-					'getElement': {
-						descr: 'returns the element as defined by <em>options.selector</em> (see #{link:Blocks.ManagedObjectHandler#initialize}).  Note: the element must not have any inner content or an error will be thrown'
-						},
-					'elBind': {
-						descr: 'bind the provided function (or function represented by name) to the element',
-						params: [
-							{name: 'event', descr: 'the event name (eg: change)'},
-							{name: 'selector', descr: 'the selector (if nested within options.el selector)', optional: true},
-							{name: 'fName', descr: 'the function name or actual function.  The function will be bound to the handler.', type: 'string or function'}
-						]
-					}
-				}
-			}
 		},
 		
 		'View Models': {
@@ -676,6 +726,19 @@ models.Method = models.Base.extend({
 	parse: function(data) {
 		this.parameters = new collections.Parameters(data.params, {parse: true});
 		delete data.parameters;
+		
+		if (data.returns) {
+			if (_.isArray(data.returns)) {
+				data.returns = {
+						type: data.returns[0],
+						descr: data.returns[1]
+				};
+			} else {
+				data.returns = {
+						type: data.returns
+				};
+			}
+		}
 
 		return data;
 	}

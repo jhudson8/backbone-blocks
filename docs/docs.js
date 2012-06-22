@@ -1,32 +1,33 @@
 Blocks.templates = {
 	'api-index' : '<div class="sections"></div>',
 	'api-section' : '<a class="toc_title" href="#section/{{name}}">{{name}}</a> <ul class="toc_section classes"></div>',
-	'api-class' : '<h1 class="page-title">{{name}}</h1> <p>{{linkScan descr}}</p> <ul id="method-list" class="methods method-list"></ul>',
-	'api-method' : {
-		template : '<li class="api-method">\
-				<h2 class="entry-title">.{{name}} ( {{parametersShort}} )</h2>\
-				<p class="desc">{{linkScan descr}}</p>\
-				<p class="parameters"</p></li>',
-		parameters : {
-			empty : ''
-		}
-	},
-	'api-parameter' : '<p class="arguement"><strong title="{{type}}">{{name}}</strong>: {{linkScan descr}} </p>',
+	'api-class' : '<h1 class="page-title">{{name}}</h1>\
+		{{#if interfaceClass}} <p class="interfaceClass">Implements <a href="#api/{{interfaceClass}}" target="_blank">{{interfaceClass}}</a></p> {{/if}}\
+		{{#if defaultImpl}} <p class="defaultImpl">Default implementation is <a href="#api/{{defaultImpl}}" target="_blank">{{defaultImpl}}</a></p> {{/if}}\
+		<p>{{scan descr}}</p> <ul id="method-list" class="methods method-list"></ul>',
+	'api-method' : '<li class="api-method">\
+				<h2 class="entry-title">{{name}} ({{parametersShort}})</h2>\
+				{{#if returns}}<p class="returns">returns {{returns.type}}{{#if returns.descr}}; {{returns.descr}}{{/if}}</p>{{/if}}\
+				<p class="desc">{{scan descr}}</p>\
+				<p class="parameters"</p>\
+				</li>',
+	'api-parameter' : '<p class="arguement"><strong title="{{type}}">{{name}}</strong>: {{scan descr}} </p>',
 	'mini-api-index' : '<div class="sections"></div>',
 	'mini-api-section' : '<div class="classes"></div>',
 	'mini-api-class' : '<a class="toc_title" href="#api/{{name}}">{{name}}</a> <ul class="toc_section methods"></ul>',
-	'mini-api-method' : {
-		template : '<li><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></li>',
-		'parameters-empty' : ''
-	}
+	'mini-api-method' : '<li><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></li>'
 };
 
 // use a handlebars template engine
+Blocks.Defaults.contentProvider = new Blocks.Content.HashProvider();
 Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 Blocks.Defaults.collectionHandlerClass = Blocks.Handler.Collection.ItemView;
 
+var extlinkPattern = /#\{extlink:([^}|]*)\|?([^}]*)\}/;
 var linkPattern = /#\{link:([^}|]*)\|?([^}]*)\}/;
-Handlebars.registerHelper("linkScan", function(val) {
+var codePattern = /`([^`]+)`/g;
+var codeBlockPattern = /```([^`]+)```/g;
+Handlebars.registerHelper("scan", function(val) {
 	if (!val)
 		return val;
 	var match;
@@ -40,6 +41,18 @@ Handlebars.registerHelper("linkScan", function(val) {
 		link += '</a>';
 		val = val.replace(match[0], link);
 	}
+	while (match = val.match(extlinkPattern)) {
+		var link = '<a href="' + match[1] + '" target="_blank">';
+		if (match[2]) {
+			link += match[2];
+		} else {
+			link += match[1];
+		}
+		link += '</a>';
+		val = val.replace(match[0], link);
+	}
+	val = val.replace(codeBlockPattern, '<pre class="code">$1</pre>');
+	val = val.replace(codePattern, '<code>$1</code>');
 	return new Handlebars.SafeString(val);
 });
 
@@ -118,7 +131,6 @@ views.APIClass = views.Base.extend({
 				var el = this.$('.api-method-' + this.options.method);
 				if (el.size()) {
 					el.get(0).scrollIntoView();
-					el.effect("highlight", {}, 3000);
 				}
 			}, this));
 		}

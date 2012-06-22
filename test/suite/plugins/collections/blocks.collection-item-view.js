@@ -12,7 +12,7 @@
 				loading : 'The people are loading...',
 				empty : 'There are no people',
 				item : '{{firstName}} {{lastName}}',
-				full : 'The items are: <ul class="{{itemClass}}"></ul>'
+				full : 'The items are: <ul id="{{containerId}}"></ul>'
 			}
 		}
 	});
@@ -20,7 +20,7 @@
 	test(
 					"lifecycle events and templates",
 					function() {
-						Blocks.templateEngine = new Blocks.Template.Handlebars();
+						Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 						Blocks.Defaults.collectionHandlerClass = Blocks.Handler.Collection.ItemView;
 
 						var people = new MockCollection();
@@ -43,7 +43,7 @@
 						}));
 						equal(
 										replaceContainerId(view.$el.html()),
-										'main <div class="people">The items are: <ul class="{*}"><li data-view="{*}">Joe Hudson</li></ul></div>',
+										'main <div class="people">The items are: <ul id="{*}"><li data-view="{*}">Joe Hudson</li></ul></div>',
 										'full template, item template and add binding');
 						people.add(new Backbone.Model({
 							firstName : 'Bill',
@@ -51,19 +51,19 @@
 						}));
 						equal(
 										replaceContainerId(view.$el.html()),
-										'main <div class="people">The items are: <ul class="{*}"><li data-view="{*}">Joe Hudson</li><li data-view="{*}">Bill Bixby</li></ul></div>',
+										'main <div class="people">The items are: <ul id="{*}"><li data-view="{*}">Joe Hudson</li><li data-view="{*}">Bill Bixby</li></ul></div>',
 										'full template, item template and add binding');
 						people.remove(people.at(0));
 						equal(
 										replaceContainerId(view.$el.html()),
-										'main <div class="people">The items are: <ul class="{*}"><li data-view="{*}">Bill Bixby</li></ul></div>',
+										'main <div class="people">The items are: <ul id="{*}"><li data-view="{*}">Bill Bixby</li></ul></div>',
 										'delete binding');
 					});
 
 	test(
 					"full views for item entries (instead of templates)",
 					function() {
-						Blocks.templateEngine = new Blocks.Template.Handlebars();
+						Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 						Blocks.Defaults.collectionHandlerClass = Blocks.Handler.Collection.ItemView;
 
 						var ItemView = Blocks.View.extend({
@@ -89,7 +89,7 @@
 						view.render();
 						equal(
 										replaceContainerId(view.$el.html()),
-										'main <div class="people">The items are: <ul class="{*}"><li data-view="{*}">person: Joe Hudson</li></ul></div>',
+										'main <div class="people">The items are: <ul id="{*}"><li data-view="{*}">person: Joe Hudson</li></ul></div>',
 										'collection UI content is as expected');
 					});
 })();

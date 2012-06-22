@@ -1,5 +1,42 @@
 (function(env) {
-	var root = env.Blocks = {};
+	var root = env.Blocks = {
+		// access to default functionality
+		setView: function(view, options) {
+			Blocks.page.setView(view, options);
+		},
+		isValidContentPath: function(path, view, options) {
+			return ((options && options.contentProvider) || Blocks.Defaults.contentProvider).isValid(path, view, options);
+		},
+		getContent: function(path, view, options) {
+			var contentProvider = (options && options.contentProvider) || Blocks.Defaults.contentProvider;
+			return contentProvider.get(path, view, options);
+		},
+		template: function(path, view, options) {
+			var content = this.getContent(path, view, options);
+			return this.contentTemplate(content, view, options);
+		},
+		contentTemplate: function(content, view, options) {
+			var templateEngine = (options && options.templateEngine) || Blocks.Defaults.templateEngine;
+			return templateEngine.get(content, view, options);
+		},
+		i18n: function(key, defaultVal, count, options) {
+			if (!_.isNumber(count)) {
+				options = count;
+				count = undefined;
+			}
+			return Blocks.Default.i18nProvider.get(key, defaultVal);
+		},
+		serializeField: function(el) {
+			return Blocks.Defaults.serializer.serializeField(el);
+		},
+		serialize: function (root, attr) {
+			return Blocks.Defaults.serializer.serialize(root, attr);
+		},
+		synchronizeDOM: function(root, model) {
+			return Blocks.Defaults.serializer.synchronizeDOM(root, model);
+		}
+	};
+
 	_.extend(root, Backbone.Events);
 	// Cached regex to split keys for `delegate`.
 	var delegateEventSplitter = /^(\S+)\s*(.*)$/;
@@ -32,18 +69,11 @@
 	 * DEFAULT TEMPLATE ENGINE & CONTENT PROVIDER IMPL
 	 ****************************************************************************/
 
-	var _templateBase = _handler.TemplateBase = _base.extend({
-		loadPath : function(path, view, options) {
-			var contentProvider = options && options.provider || root.contentProvider;
-			return this.loadTemplate(contentProvider.get(path, view, options), options);
-		}
-	});
-
 	/**
 	 * Simple template plugin using the underscore template function
 	 */
-	_template.Underscore = _templateBase.extend({
-		loadTemplate : function(content) {
+	_template.Underscore = _base.extend({
+		get : function(content) {
 			return _.template(content);
 		}
 	});
@@ -51,92 +81,46 @@
 	/**
 	 * Simple template plugin using the handlebars template engine
 	 */
-	_template.Handlebars = _templateBase.extend({
-		loadTemplate : function(content) {
+	_template.Handlebars = _base.extend({
+		get : function(content) {
 			return Handlebars.compile(content);
 		}
 	});
 
 	/**
-	 * Simple templates that can either be defined on the view within the
-	 * 'templates' property or on Blocks.templates. If in Blocks.templates then
-	 * the view 'package' property will be prefixed to the path. Package segments
-	 * should be separated with '.'. Each package segment will map to a
-	 * sub-property within Blocks.templates.
+	 * Simple content provider which uses DOM elements inner HTML for content.  The element ids
+	 * checked are
+	 * - {viewPackage (replace '/' with '_')}_{viewName}_{path}
+	 * - {viewName}_{path}
+	 * - {path}
 	 */
-	_content.HashProvider = _base.extend({
-		get : function(path, view) {
-			// split the path into parts
-			var pathParts = path ? path.split('/') : undefined;
-
-			// navigate from a root through hash properties
-			function navigate(obj, parts) {
-				var parent = obj;
-				for ( var i = 0; i < parts.length; i++) {
-					if (!parent)
-						break;
-					parent = parent[parts[i]];
+	_content.ElementContentProvider = _base.extend({
+		get : function(path, view, options) {
+			var id = '';
+			if (view.viewPackage) {
+				id += view.viewPackage.replace(/[\/\.]/, '_');
+			}
+			if (view.viewName) {
+				if (id.length > 0) {
+					id += '_';
 				}
-				return parent;
+				id += view.viewName;
 			}
-
-			// return a string value from a property value on an object
-			function strVal(obj, prop) {
-				if (obj && prop) {
-					var rtn = obj[prop];
-					if (_.isString(rtn)) {
-						return rtn;
-					}
-				}
+			if (path) {
+				id += ('_' + path);
 			}
-
-			// check all path options from a root which could contain the view
-			// template
-			function checkPaths(obj) {
-				if (obj) {
-					if (!pathParts) {
-						return strVal(obj, view.viewName) || strVal(obj, 'template');
-					} else {
-						var parent = navigate(obj, pathParts);
-						if (_.isString(parent))
-							return parent;
-					}
-				}
-			}
-
-			var rtn;
-			// first check view.templates
-			if (view && view.templates) {
-				rtn = checkPaths(view.templates);
-			}
-
-			// then check Block.templates
-			if (!rtn && root.templates) {
-				var packageParts = (view && view.viewPackage) ? view.viewPackage.split('.') : undefined;
-				if (packageParts) {
-					var _root = navigate(root.templates, packageParts);
-					if (view) {
-						if (_root && view && view.viewName) {
-							_root = _root[view.viewName];
-						}
-						if (!path && _.isString(_root)) {
-							return _root;
-						}
-					}
-					rtn = checkPaths(_root || root.templates);
-				} else {
-					rtn = checkPaths(_root || root.templates);
-				}
-			}
-
-			if (!rtn || !_.isString(rtn)) {
-				throw new Error('Undefined template "' + path + '"');
+			var rtn = $('#' + id).html();
+			if (!_.isString(rtn) && (!options || !options.suppressError)) {
+				var err = 'Undefined template ';
+				if (path) err += '"' + path + "'";
+				if (view) err += ' for view "' + view.viewName + '; missing element by id "' + id + '"';
+				throw new Error(err);
 			}
 			return rtn;
 		},
 
 		isValid : function(path, view) {
-			return !!this.get(path, view, true);
+			return !!this.get(path, view, {suppressError: true});
 		}
 	});
 
@@ -236,12 +220,8 @@
 		/**
 		 * Serialize a single input field
 		 * 
-		 * @param key
-		 *          the attributes map key
 		 * @param element
 		 *          the single DOM element
-		 * @param attr
-		 *          the attributes hash
 		 */
 		serializeField : function(element) {
 			var el = $(element);
@@ -406,7 +386,7 @@
 			return attr;
 		},
 
-		setValues : function(root, model) {
+		synchronizeDOM : function(root, model) {
 			if (model instanceof Backbone.Model) {
 				model = model.attributes;
 			}
@@ -566,10 +546,8 @@
 			this._bindings = [];
 			this._toClean = [];
 
-			this.templateEngine = root.templateEngine;
-			this.contentProvider = root.contentProvider;
 			if (this.serializer)
-				this.serializer = Blocks.serializer;
+				this.serializer = Blocks.Defaults.serializer;
 			this.objectManager = new root.Defaults.objectManagerClass(this);
 
 			if (options && options.model && root.Defaults.autoAddModel) {
@@ -596,7 +574,7 @@
 		 */
 		mergeTemplate : function(path, context, options) {
 			try {
-				return this.templateEngine.loadPath(path, this, options)(context);
+				return Blocks.template(path, this, options)(context);
 			} catch (e) {
 				if (!options || !options.suppressError) {
 					throw e;
@@ -738,6 +716,15 @@
 			return this;
 		},
 
+		exec : function(type, name, args) {
+			if (!_.isString(name)) {
+				args = name;
+				name = type;
+				type = undefined;
+			}
+			return this.objectManager.exec(type, name, args);
+		},
+
 		/**
 		 * Add a callback that will be executed when the view is destroyed
 		 */
@@ -813,7 +800,7 @@
 				};
 			}
 
-			var $el = this.el;
+			var $el = this.$el;
 			var match = key.match(delegateEventSplitter);
 			var eventName = match[1], selector = match[2];
 			method = _.bind(method, this);
@@ -924,6 +911,7 @@
 				root.html('');
 				root.append(view.$el);
 				options.success();
+				window.scrollTo(0, 0);
 			};
 		},
 
@@ -949,7 +937,7 @@
 
 		addModule : function(name, data, options) {
 			this.loadedModules = this.loadedModules || {};
-			var loader = new root.moduleLoaderClass(name, data, options);
+			var loader = new root.Defaults.moduleLoaderClass(name, data, options);
 			var callback = this.moduleCallback(name, loader);
 			_.each(data.routes, _.bind(function(route) {
 				this.route(route.replace('*', '*var'), 'module:' + name, callback);
@@ -1157,6 +1145,9 @@
 			}
 
 			var object = options[type];
+			if (options.fetch) {
+				object.fetch(options);
+			}
 			// initialize and allow auto-binding from the context object to the
 			// view
 			var initArgs = [ this.parent, object, options ];
@@ -1539,11 +1530,11 @@
 	_handler.View = {};
 
 	root.resetDefaults = function() {
-		root.templateEngine = new _template.Underscore();
-		root.contentProvider = new _content.HashProvider();
-		root.serializer = new _field.Serializer();
-		root.moduleLoaderClass = _loader.SimpleLoader;
 		return root.Defaults = {
+			templateEngine : new _template.Underscore(),
+			contentProvider: new _content.ElementContentProvider(),
+			serializer : new _field.Serializer(),
+			moduleLoaderClass: _loader.SimpleLoader,
 			objectManagerClass : Blocks.ObjectManager,
 			modelHandlerClass : _handler.ModelContextContributor,
 			collectionHandlerClass : _handler.CollectionContextContributor,

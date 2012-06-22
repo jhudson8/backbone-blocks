@@ -1,5 +1,7 @@
+Blocks.Defaults.contentProvider = new Blocks.Content.HashProvider();
 QUnit.reset = function() {
 	Blocks.resetDefaults();
+	Blocks.Defaults.contentProvider = new Blocks.Content.HashProvider();
 	Blocks.templates = {};
 };
 

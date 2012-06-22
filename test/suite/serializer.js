@@ -2,16 +2,16 @@
 	module("Serializer", {
 		setup : function() {
 			// add the list type serializer for any fields with data-type="list"
-			Blocks.serializer.add({
+			Blocks.Defaults.serializer.add({
 				namingStrategy : new Blocks.Handler.Field.SimpleNamingStrategy({
 					dataType : 'list'
 				}),
 				inputHandler : new Blocks.Handler.Field.ListInputHandler()
-			})
+			});
 
 			// add the true/fasle type serializer for any fields with data-type="tf"
 			// for multiple radio buttons with values of "true" and "false"
-			Blocks.serializer.add({
+			Blocks.Defaults.serializer.add({
 				namingStrategy : new Blocks.Handler.Field.SimpleNamingStrategy({
 					dataType : 'tf'
 				}),
@@ -33,7 +33,7 @@
 		var el = $('#qunit-fixture');
 		el.html(html);
 
-		var attrs = Blocks.serializer.serialize(el);
+		var attrs = Blocks.serialize(el);
 		equal(attrs.firstName, 'Joe', 'Text field');
 		equal(attrs.desc, 'Sample description', 'Textarea');
 		equal(attrs.accept, true, 'T/F checkbox');
@@ -58,9 +58,9 @@
 						finger: 'thumb',
 						letters: ['b','c']
 		};
-		Blocks.serializer.setValues(el, attrs);
+		Blocks.synchronizeDOM(el, attrs);
 
-		attrs = Blocks.serializer.serialize(el);
+		attrs = Blocks.serialize(el);
 		equal(attrs.firstName, 'Bob', 'Text field');
 		equal(attrs.desc, 'Another desc', 'Textarea');
 		equal(attrs.accept, false, 'T/F checkbox'); // bad

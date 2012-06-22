@@ -23,7 +23,7 @@
 					});
 
 	test("Render init", function() {
-		Blocks.templateEngine = new Blocks.Template.Handlebars();
+		Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 		Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
 
 		var model = new MockModel({
@@ -56,7 +56,7 @@
 	});
 
 	test("Model change to DOM", function() {
-		Blocks.templateEngine = new Blocks.Template.Handlebars();
+		Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 		Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
 
 		var model = new MockModel({
@@ -98,7 +98,7 @@
 	});
 
 	test("DOM change to model", function() {
-		Blocks.templateEngine = new Blocks.Template.Handlebars();
+		Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 		Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
 
 		var model = new MockModel({
@@ -135,7 +135,7 @@
 	});
 
 	test("Auto field validation using model.validate", function() {
-		Blocks.templateEngine = new Blocks.Template.Handlebars();
+		Blocks.Defaults.templateEngine = new Blocks.Template.Handlebars();
 		Blocks.Defaults.modelHandlerClass = Blocks.Handler.ModelBinder;
 
 		var ValidModel = MockModel.extend({
@@ -155,16 +155,16 @@
 		var view = new View();
 		view.addModel('.model', model);
 		var validationError;
-		view.bind('fieldError', function(error) {
+		view.bind('field:error', function(error) {
 			validationError = error;
 		});
-		view.bind('fieldSuccess', function() {
+		view.bind('field:success', function() {
 			validationError = false;
 		});
 		view.render();
 		view.$el.find('#t1').val('bar').change();
 		equal(validationError.message, 'Invalid length', 'model error was propogated to view using fieldError event');
 		view.$el.find('#t1').val('food').change();
-		equal(validationError, false, 'fieldSuccess cleared the error after DOM input changed');
+		equal(validationError, false, 'field:success cleared the error after DOM input changed');
 	});
 })();

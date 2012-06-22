@@ -110,7 +110,7 @@ Blocks.Handler.Field.ListInputHandler = Blocks.Handler.Base.extend({
 });
 
 // add the list type serializer for any fields with data-type="list"
-Blocks.serializer.add({
+Blocks.Defaults.serializer.add({
 	namingStrategy : new Blocks.Handler.Field.SimpleNamingStrategy({
 		dataType : 'list'
 	}),

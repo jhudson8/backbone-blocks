@@ -13,7 +13,7 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 	},
 
 	init : function(view, model, options) {
-		this.serializer = options.serializer || Blocks.serializer;
+		this.serializer = options.serializer || Blocks.Defaults.serializer;
 		this.model = model;
 		this._bound = _.bind(this.modelChanged, this);
 		model.on('change', this._bound);
@@ -22,12 +22,22 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 
 	rendered : function() {
 		if (this.model.attributes) {
-			this.serializer.setValues(this.$el, this.model);
+			this.serializer.synchronizeDOM(this.$el, this.model);
 		}
 	},
 
 	modelChanged : function(model, options) {
-		this.serializer.setValues(this.$el, model);
+		this.serializer.synchronizeDOM(this.$el, model);
+	},
+
+	synchronize : function() {
+		var attr = this.serializer.serialize(this.$el);
+		return !!this.model.set(attr, {
+			error: _.bind(function(model, errors) {
+				this.parent.trigger('field:error', errors, this.parent, undefined);
+				Blocks.page && Blocks.page.trigger('field:error', errors, this.parent, undefined);
+			}, this)
+		});
 	},
 
 	inputChanged : function(event) {
@@ -36,16 +46,19 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 		if (attributes) {
 			var validate = true;
 			for (var key in attributes) {
-				validate = validate && this.validate(key);
+				validate = validate && this.validateField(key);
 			}
 			if (validate) {
-				var rtn = this.model.set(attributes, {error: _.bind(function(model, errors) {
-					this.parent.trigger('fieldError', errors, element, this.parent);
-					Blocks.page && Blocks.page.trigger('fieldError', errors, element, this.parent);
-				}, this)});
+				var rtn = this.model.set(attributes, {
+					error: _.bind(function(model, errors) {
+						this.parent.trigger('field:error', errors, element, this.parent);
+						Blocks.page && Blocks.page.trigger('field:error', errors, element, this.parent);
+					}, this),
+					individual: true
+				});
 				if (rtn) {
-					this.parent.trigger('fieldSuccess',  element, this.parent);
-					Blocks.page && Blocks.page.trigger('fieldSuccess', element, this.parent);
+					this.parent.trigger('field:success',  element, this.parent);
+					Blocks.page && Blocks.page.trigger('field:success', element, this.parent);
 				}
 			} else {
 				this.model.set(attributes, {validate: false});
@@ -53,7 +66,7 @@ Blocks.Handler.ModelBinder = Blocks.Handler.ModelContextContributor.extend({
 		}
 	},
 
-	validate: function(key) {
+	validateField: function(key) {
 		if (this.fields) {
 			for (var i in this.fields) {
 				if (fields[i].key === key && !_.isUndefined(fields[i].validate)) {

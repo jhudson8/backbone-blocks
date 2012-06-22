@@ -1,8 +1,19 @@
 (function() {
-	module("Hash Content Provider");
+	module("Content Providers");
+	
+	test("Default (Element) Content Provider", function() {
+		var provider = new Blocks.Content.ElementContentProvider();
+		
+		$("#qunit-fixture").html('<div id="foo">view template</div>\
+				<div id="my_package_foo">qualified view template</div>\
+				<div id="my_package_foo_path">qualified view template with path</div>');
 
-	test("View-based templates", function() {
+		equal(provider.get(undefined, {viewName: 'foo'}), 'view template');
+		equal(provider.get(undefined, {viewName: 'foo', viewPackage: 'my.package'}), 'qualified view template');
+		equal(provider.get('path', {viewName: 'foo', viewPackage: 'my.package'}), 'qualified view template with path');
+	});
 
+	test("Hash Content Provider", function() {
 		var provider = new Blocks.Content.HashProvider();
 		Blocks.templates = {
 			foo : 'global template',
@@ -35,4 +46,5 @@
 		equal(provider.get(undefined, view), Blocks.templates.example.foo.template,
 				'4th check: {view package}.{template name}.template');
 	});
+
 })();

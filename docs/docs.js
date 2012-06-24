@@ -13,9 +13,10 @@ Blocks.templates = {
 				</li>',
 	'api-parameter' : '<p class="arguement"><strong title="{{type}}">{{name}}</strong>: {{scan descr}} </p>',
 	'mini-api-index' : '<div class="sections"></div>',
-	'mini-api-section' : '<div class="classes"></div>',
+	'mini-api-section' : '<div class="section"><h2>{{name}}</h2><div class="classes"></div></div>',
 	'mini-api-class' : '<a class="toc_title" href="#api/{{name}}">{{name}}</a> <ul class="toc_section methods"></ul>',
-	'mini-api-method' : '<li><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></li>'
+	'mini-api-method' : '<li><a href="#api/{{methodClass}}#{{name}}">{{name}}</a></li>',
+	'multipleParamters' : '{{values}}'
 };
 
 // use a handlebars template engine
@@ -144,6 +145,18 @@ views.APIClass = views.Base.extend({
 	}
 });
 
+views.MultipleParametersView = Blocks.View.extend({
+	viewName: 'multipleParamters',
+	init: function(options) {
+		if (options.parameters.values) {
+			this.values = options.parameters.values.map(function(values) {
+				return '(' + values.join(', ') + ')';
+			}).join('; ');
+		}
+		this.descr = options.parameters.descr;
+	}
+});
+
 views.APIMethod = views.Base.extend({
 	viewName : 'api-method',
 	template : miniTemplate,
@@ -151,7 +164,13 @@ views.APIMethod = views.Base.extend({
 	init : function() {
 		this.$el.addClass('api-method-' + this.options.method.attributes.name);
 		this.addModel(this.options.method);
-		if (this.options.method.parameters) {
+		if (this.options.method.parameterSet) {
+			this.parametersShort = this.options.method.parameterSet.names.map(function(values) {
+				return values.join(', ');
+			}).join('; &nbsp;&nbsp;&nbsp;');
+			this.parameters = this.addCollection('parameters',
+					this.options.method.parameters);
+		} else if (this.options.method.parameters) {
 			this.parameters = this.addCollection('parameters',
 					this.options.method.parameters);
 			this.parametersShort = this.parameters.models.map(function(model) {

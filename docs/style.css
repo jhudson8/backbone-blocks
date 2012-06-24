@@ -1,3 +1,8 @@
+.section h2 {
+	font-size: 14px;
+	border-bottom: solid 2px #ccc;
+}
+
 .returns, .interfaceClass, .defaultImpl {
 	margin-top: 0;
 	margin-bottom: 0;
@@ -6,7 +11,7 @@
 }
 
 body {
-	font-size: 14px;
+	font-size: 13px;
 	line-height: 22px;
 	font-family: Helvetica Neue, Helvetica, Arial;
 	background: #f4f4f4 url(docs/images/background.png);

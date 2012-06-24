@@ -6,11 +6,13 @@
 		
 		$("#qunit-fixture").html('<div id="foo">view template</div>\
 				<div id="my_package_foo">qualified view template</div>\
-				<div id="my_package_foo_path">qualified view template with path</div>');
+				<div id="my_package_foo_path">qualified view template with path</div>\
+				<div id="bar">content from template</div>');
 
 		equal(provider.get(undefined, {viewName: 'foo'}), 'view template');
 		equal(provider.get(undefined, {viewName: 'foo', viewPackage: 'my.package'}), 'qualified view template');
 		equal(provider.get('path', {viewName: 'foo', viewPackage: 'my.package'}), 'qualified view template with path');
+		equal(provider.get(undefined, {template: function() { return 'bar'; }}), 'content from template');
 	});
 
 	test("Hash Content Provider", function() {

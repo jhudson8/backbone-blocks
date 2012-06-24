@@ -218,7 +218,7 @@ var Router = Blocks.Router.extend({
 			var model = new models.Class(data, {
 				parse : true
 			});
-			Blocks.setView(new views.APIClass({
+			Blocks.setPageView(new views.APIClass({
 				clazz : model,
 				method : method
 			}));
